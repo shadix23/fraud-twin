@@ -213,7 +213,7 @@ export function FeedDialog({ open, tab, setTab, onClose, sc, log, honest, thr, m
             <Rows rows={rows} thr={thr} />
             {rows.length === 0 && <p className="py-6 text-[16px] text-ink-2">{tab === 'honest' ? 'Эта мера не задела ни одного честного перевода.' : 'Таких переводов нет.'}</p>}
           </div>
-          <p className="flex items-center gap-2 border-t border-white/[0.07] px-5 py-3 text-[14px] text-ink-3 sm:px-8"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stop-scene" aria-hidden />Синтетический банк. Роли «жертва» и «дроп» известны только в двойнике, банк их не видит.</p>
+          <p className="flex items-center gap-2 border-t border-white/[0.07] px-5 py-3 text-[14px] text-ink-3 sm:px-8"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stop-scene" aria-hidden />Цифровой двойник банка. Роли «жертва» и «дроп» известны только в двойнике, банк их не видит.</p>
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>

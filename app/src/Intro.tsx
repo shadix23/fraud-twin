@@ -26,7 +26,7 @@ export function Landing({ clients, onStart, onTour, onHow }: { clients: number; 
           </button>
         </div>
         <button className="link-btn mt-4 sm:mt-6 short:mt-4" onClick={onHow}>Четыре задачи кейса<ArrowRight size={15} strokeWidth={2} aria-hidden /></button>
-        <p className="mt-1 text-[14px] leading-snug text-ink-3" data-synthetic>Двойник синтетический: {clients.toLocaleString('ru-RU')} клиентов, данных реальных людей нет.</p>
+        <p className="mt-1 text-[14px] leading-snug text-ink-3" data-synthetic>Цифровой двойник: {clients.toLocaleString('ru-RU')} клиентов, данных реальных людей нет.</p>
       </div>
     </motion.div>
   )

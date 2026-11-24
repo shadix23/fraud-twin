@@ -91,7 +91,7 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
         <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[linear-gradient(90deg,#4361ee,#9000f8_30%,#c48bff_55%,#9000f8_78%,#b03fc4)]" aria-hidden />
         {/* двухтоновый заголовок (tailark dusk): первая фраза чернилами, продолжение приглушено */}
         <h1 className="text-[36px] font-light leading-[1.1] tracking-[-0.03em] text-deep">Отчёт краш-теста антифрода. <span className="text-ink-3">{r.bank.name}</span></h1>
-        <p className="mt-3 text-[16px] text-ink-2">{date}. Синтетический банк: {r.bank.clients.toLocaleString('ru-RU')} {plural(r.bank.clients, 'клиент', 'клиента', 'клиентов')}, {r.bank.honest_tx.toLocaleString('ru-RU')} {plural(r.bank.honest_tx, 'перевод', 'перевода', 'переводов')} за сутки</p>
+        <p className="mt-3 text-[16px] text-ink-2">{date}. Цифровой двойник банка: {r.bank.clients.toLocaleString('ru-RU')} {plural(r.bank.clients, 'клиент', 'клиента', 'клиентов')}, {r.bank.honest_tx.toLocaleString('ru-RU')} {plural(r.bank.honest_tx, 'перевод', 'перевода', 'переводов')} за сутки</p>
       </header>
 
       {/* вывод одной фразой: жюри и фрод-директор читают его первым, цифры ниже его раскрывают */}
@@ -257,7 +257,7 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
       </div>
 
       <footer className="mt-10 border-t border-money pt-3 text-[14px] text-ink-3">
-        Fraud Twin. {source === 'api' ? 'Живой прогон симулятора' : 'Готовый прогон симулятора'}, {date}. Краш-тест на синтетическом банке, параметры двойника - гипотезы. Не аудит реальной системы.
+        Fraud Twin. {source === 'api' ? 'Живой прогон симулятора' : 'Готовый прогон симулятора'}, {date}. Краш-тест на цифровом двойнике банка, параметры двойника - гипотезы. Не аудит реальной системы.
       </footer>
     </article>
   )
