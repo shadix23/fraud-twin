@@ -33,7 +33,7 @@ class ReportTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         c = normalize({"n_clients": 2000})
-        cls.rep = build_report(generate_world(calib_profile(c)), calib_rules(c), "тест", c)
+        cls.rep = build_report(generate_world(calib_profile(c)), calib_rules(c), "тест", c, fast=True)
 
     def test_shape_and_synthetic(self):
         r = self.rep
@@ -48,6 +48,8 @@ class ReportTest(unittest.TestCase):
         s = self.rep["summary"]
         self.assertGreaterEqual(s["hole_withdrawn"], 0.9 * s["lib_withdrawn"])
         self.assertLessEqual(s["hole_withdrawn"], s["attempted"] * 2)
+        self.assertLessEqual(s["hole_withdrawn"], s["hole_attempted"])
+        self.assertLessEqual(s["hole_pct"], 100.0)
 
     def test_model_cuts_hole_losses(self):
         m = {x["key"]: x for x in self.rep["measures"]}

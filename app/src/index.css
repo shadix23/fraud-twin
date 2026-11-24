@@ -1,330 +1,457 @@
-/* Montserrat: выбор пользователя 23.11.2026 (v11, фиолетовая палитра); локально, без сети */
-@import "@fontsource-variable/montserrat";
-@import "@fontsource-variable/jetbrains-mono";
+/* v20: Inter Variable, локально. Единственный шрифт: прямое решение пользователя (бриф v20, п. «Чего не делать») */
+@import "@fontsource-variable/inter";
 @import "tailwindcss";
 
 /* низкий экран ноутбука или проектора 1280x720: плотнее по вертикали, чтобы шаги шли без прокрутки */
 @custom-variant short (@media (min-width: 1024px) and (max-height: 820px));
 /* низкий экран любой ширины: телефон клиента плотнее */
 @custom-variant tight (@media (max-height: 820px));
-/* ноутбук 900-1000 px по высоте: в ленте шага «Защита» две строки вместо трёх, чтобы панель шла без прокрутки */
+/* ноутбук 900-1000 px по высоте: в ленте шага «Защита» две строки вместо трёх */
 @custom-variant mid (@media (min-width: 1024px) and (max-height: 1000px));
-/* телефон с экраном до 820 px (375x812): экран клиента вместе со строкой про ложные предупреждения помещается над главной кнопкой */
+/* телефон жюри (#client): видимая высота Safari 650-700 px, плотнее ещё на шаг */
+@custom-variant tiny (@media (max-height: 700px));
+/* телефон с экраном до 820 px (375x812) */
 @custom-variant phone-short (@media (max-width: 1023px) and (max-height: 820px));
 
-/* высота закреплённой главной кнопки на телефоне: 12 + 48 + 12 + грань 1 px и нижняя безопасная зона */
-:root { --bar-h: calc(73px + env(safe-area-inset-bottom, 0px)); }
+/* высота закреплённой главной кнопки на телефоне: 12 + 52 + 12 и нижняя безопасная зона */
+:root { --bar-h: calc(76px + env(safe-area-inset-bottom, 0px)); }
 
-/* Fraud Twin: цвет только по смыслу: leak = выведено, stop = остановлено, money = деньги в пути.
-   v11, 23.11.2026: палитра референсов пользователя вместо BCC (решение пользователя: «тот цвет, который как на референсах»).
-   Цвета сняты пипеткой: hexacoin-landing (фон #080815, карточка #120f30, кнопка #9000f8, «Crypto» #a008e0, свечения #582098 и #8e2d8d),
-   security-alert-glass (фон #030416, кнопка #3070e0 -> #5888e8, розовый #e288af), purple-banking-app (свечение #5010b8). */
+/* v20, светлая тема (бриф v20, п. 1). Цвет только по смыслу, контраст WCAG посчитан в брифе.
+   Имена токенов v19 удалены целиком, не переопределены. */
 @theme {
-  /* Имена токенов прежние (gold-* и champagne теперь означают фиолетовый акцент), значения тёмные;
-     для печати отчёта светлые значения возвращаются в @media print. Контраст WCAG 2.1 на фоне #0b0a1c */
-  --color-paper: #0b0a1c;      /* базовый тёмный слой панели и листа */
-  --color-page: #110f28;       /* дорожки, утопленные поля */
-  --color-line: #2c2856;
-  --color-hair: #1c1a3a;
-  --color-ink: #f1effa;        /* 17,2:1 */
-  --color-ink-2: #c3bfdc;      /* 11,0:1 */
-  --color-ink-3: #9a95bd;      /* 6,9:1 */
-  --color-deep: #dccbff;       /* заголовки акцентом: светлая лаванда, 13,1:1 */
-  --color-leak: #ff5c7a;       /* потеря на тёмном: розово-красный, 6,6:1 */
-  --color-leak-scene: #ff5c7a;
-  --color-stop: #3ee6c4;       /* защита на тёмном: мятно-циановый, 12,4:1; 9,6:1 на stop-bg */
-  --color-stop-scene: #1fcfae;
-  --color-stop-bg: #0c2a2c;
-  --color-stop-line: #1d7a70;
-  --color-money: #b07cff;      /* фиолетовый акцент: бренд и деньги в пути, 6,7:1 */
-  --color-champagne: #dccbff;
-  --color-bronze: #6a4bc8;     /* волосяные рамки, не текст */
-  --color-gold-ink: #c39bff;   /* акцент текстом на тёмном, 8,8:1 */
-  --color-gold-line: #3d2d78;
-  --color-gold-on: #ffffff;    /* белый текстом на градиенте кнопки: 5,0:1 на #4361ee, 5,9:1 на #9000f8 */
-  --color-scene: #080815;
-  --color-scene-0: #04040c;
-  --color-scene-2: #110f28;
-  --color-scene-3: #181538;
-  --color-scene-line: #231f48;
-  --color-scene-edge: #5f5a8f;
-  --color-ivory: #f1effa;
-  --color-mist: #b0abcf;       /* 9,1:1 */
-  --color-scene-ink-3: #948fb8; /* 6,5:1 */
-  --font-sans: "Montserrat Variable", "Montserrat", ui-sans-serif, system-ui, sans-serif;
-  /* шкала исходно под Onest (сейчас Montserrat, он шире), поэтому заголовки 550, суммы 600, трекинг мягче; мелкие подписи без трекинга */
-  --font-weight-head: 500;
-  --tracking-head: -0.012em;
-  --tracking-display: -0.025em;
-    /* стекло: грань 1 px светлее сверху, внутреннее свечение, мягкая тень вниз */
-  --shadow-lift: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 0 0 1px rgba(200, 190, 255, 0.09), inset 0 0 24px rgba(130, 70, 240, 0.06), 0 12px 28px -16px rgba(0, 0, 0, 0.7);
-  --shadow-lift-hover: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(200, 190, 255, 0.16), inset 0 0 28px rgba(130, 70, 240, 0.1), 0 14px 32px -16px rgba(0, 0, 0, 0.75);
-  /* живая карточка: одна на экран, кольцо 1 px акцента и широкая мягкая тень */
-  --shadow-live: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(176, 124, 255, 0.6), 0 0 0 4px rgba(144, 0, 248, 0.12), 0 14px 36px -14px rgba(144, 0, 248, 0.45);
-  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
-  /* motion-спека behance-banking.md, п. 5 */
-  --ease-out: cubic-bezier(0.2, 0, 0, 1);        /* standard: перемещения */
-  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);    /* out-expo-soft: появления */
-  --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);   /* исчезновения */
-  --ease-settle: cubic-bezier(0.34, 1.2, 0.64, 1); /* только карточка дыры, перелёт < 4% */
+  --color-bg: #EEEDF4;          /* фон страницы: под цветными пятнами body::before (стеклянный слой 24.11) */
+  --color-surface: #FFFFFF;     /* плиты */
+  --color-surface-2: #F4F3F9;   /* вложенное: поля, строки, плиты «Как устроено» */
+  --color-track: #E2E0EC;       /* дорожка сегмента, выключенный тумблер, пустая точка */
+  --color-line: #DDDBE6;        /* волосяная граница 1 px: белая кнопка на белом, поля */
+  --color-ink: #0E0E11;         /* 19,3:1 */
+  --color-ink-2: #3F3F46;       /* 10,4:1 */
+  --color-ink-3: #66666F;       /* подписи от 13 px: 5,7:1 на белом, 4,6:1 на bg */
+  --color-ink-mute: #8E8E97;    /* только приглушённая половина заголовков от 24 px на белом */
+  --color-leak: #D4372A;        /* текст потери */
+  --color-leak-dot: #F0564A;    /* точки и потоки потери */
+  --color-stop: #15803D;        /* текст защиты */
+  --color-stop-dot: #3DB86B;
+  --color-warn: #A35A00;        /* задетые честные */
+  --color-warn-dot: #F09A3E;
+  --color-brand: #5B4BD6;       /* банк, деньги в пути, ссылки */
+  --color-brand-dot: #7B6BE8;
+  --color-dot-neutral: #BDB9D2; /* нейтральная точка графика */
+
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* тени с лиловым оттенком бренда, многослойные: контактная, средняя, дальняя */
+  --shadow-plate: 0 1px 2px rgba(50, 40, 120, 0.05), 0 10px 24px -10px rgba(60, 45, 150, 0.12), 0 36px 64px -36px rgba(60, 45, 150, 0.20);
+  --shadow-pill: 0 1px 2px rgba(30, 20, 70, 0.12), 0 10px 24px -10px rgba(30, 20, 70, 0.42);
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ---------- Стеклянный слой (24.11, references/taste/glass-layer-scarlet-pulse.md) ----------
+   Стекло = цветной фон за ним + полупрозрачный белый градиент + кромка 1 px + блик + цветная тень.
+   backdrop-filter не используется: на гладком фоне его не видно, а над сценой он пересчитывается каждый кадр. */
+:root {
+  --dur-press: 120ms; --dur-hover: 260ms; --dur-in: 560ms; --stagger: 60ms;
+  /* почти белое, чуть лиловое стекло: внизу справа мягкий лиловый отсвет, как свет фона сквозь толщу */
+  --glass-plate: radial-gradient(120% 90% at 100% 100%, rgba(190, 176, 255, 0.16), transparent 62%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.6) 100%);
+  --glass-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.85), inset 0 1px 0 #fff;
+  --glass-nest: rgba(255, 255, 255, 0.6);
+  --glass-nest-hover: rgba(255, 255, 255, 0.85);
 }
 
 html { font-size: 16px; }
 html, body, #root { min-height: 100%; }
 body {
-  background: var(--color-scene);
+  background-color: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  /* табличные цифры по умолчанию (таблицы, часы, счётчики); крупные суммы переключаются на пропорциональные */
+  font-size: 16px; line-height: 1.45; letter-spacing: -0.011em;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-::selection { background: #6d3cf5; color: #fff; }
-/* v19: полосы прокрутки в палитре, а не системные серые */
-* { scrollbar-width: thin; scrollbar-color: #3d2d78 transparent; }
-:focus-visible { outline: 3px solid var(--color-stop); outline-offset: 2px; border-radius: 8px; }
-.ctl-main:focus-visible { outline-color: var(--color-champagne); }
-.scene :focus-visible, .chrome :focus-visible { outline-color: var(--color-stop-scene); }
-
-/* Заголовки: вес 560, трекинг -0,02em, перенос по балансу (Siriva site.css 94-99, landing.css 100-122) */
+/* четыре мягких пятна по краям, центр спокойный; фиксированный слой, статичный (не background-attachment: fixed) */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60vw 55vh at 6% -8%, rgba(150, 128, 250, 0.34), transparent 62%),
+    radial-gradient(55vw 50vh at 102% 2%, rgba(255, 170, 210, 0.28), transparent 62%),
+    radial-gradient(70vw 60vh at 88% 112%, rgba(120, 175, 255, 0.34), transparent 62%),
+    radial-gradient(45vw 45vh at -4% 104%, rgba(255, 205, 160, 0.24), transparent 62%);
+}
+/* корень приложения прозрачный, чтобы пятна были видны (класс bg-bg в разметке остаётся для печати) */
+.app-h { background-color: transparent; }
+::selection { background: var(--color-brand); color: #fff; }
+* { scrollbar-width: thin; scrollbar-color: #C4C4CC transparent; }
+/* фокус: кольцо 2 px brand с отступом 2 px у всех контролов */
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
 h1, h2, h3 { text-wrap: balance; }
 p { text-wrap: pretty; }
+abbr[title] { text-decoration-color: var(--color-ink-3); }
 
-/* Главное число: единственный элемент такого размера на экране. Единица 0,42em и приглушена (Siriva .k-stat__u) */
-.hero-num {
-  --number-flow-mask-height: 0.08em;
-  font-size: clamp(60px, min(5.8vw, 9.5vh), 92px);
-  font-weight: 300;
-  line-height: 0.95;
-  letter-spacing: var(--tracking-display);
+/* ---------- Типографика (бриф v20, таблица ролей) ---------- */
+.t-display { font-size: clamp(38px, min(4.6vw, 6.6vh), 64px); line-height: 1.02; font-weight: 600; letter-spacing: -0.04em; }
+.t-h1 { font-size: 40px; line-height: 1.05; font-weight: 600; letter-spacing: -0.035em; }
+.t-num1 { font-size: 72px; line-height: 1; font-weight: 500; letter-spacing: -0.045em; white-space: nowrap; }
+.t-num2 { font-size: 44px; line-height: 1; font-weight: 500; letter-spacing: -0.035em; white-space: nowrap; }
+.t-title { font-size: 20px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; }
+.t-ctl { font-size: 15px; line-height: 1.2; font-weight: 500; letter-spacing: -0.01em; }
+.t-caption { font-size: 13px; line-height: 1.35; font-weight: 500; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-caps { font-size: 11px; line-height: 1.2; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.t-num1 .u, .t-num2 .u { font-size: 0.42em; letter-spacing: -0.01em; margin-left: 0.18em; font-weight: 500; opacity: 0.72; }
+@media (max-width: 1023px) {
+  .t-h1 { font-size: 28px; }
+  .t-num1 { font-size: 52px; }
+  .t-num2 { font-size: 34px; }
 }
-/* крупные суммы: пропорциональные цифры, чтобы «7,1» не разъезжалось */
-.hero-num, .second-num, .num-prop { font-variant-numeric: proportional-nums; }
-.unit { color: var(--color-ink-3); font-weight: 500; letter-spacing: -0.01em; }
-.hero-num .unit { font-size: 0.42em; margin-left: 0.14em; }
-.second-num { --number-flow-mask-height: 0.08em; font-size: 40px; font-weight: 350; line-height: 1; letter-spacing: -0.02em; }
-.second-num .unit { font-size: 0.45em; margin-left: 0.14em; }
-/* пара чисел одного веса: «Выведено» и «Задето честных». Размер общий, чтобы ни одно не было главным */
-.pair-num {
-  --number-flow-mask-height: 0.08em;
-  font-size: clamp(38px, min(3.2vw, 6.2vh), 60px);
-  font-weight: 300; line-height: 1; letter-spacing: var(--tracking-display);
-  font-variant-numeric: proportional-nums; white-space: nowrap;
-}
-.pair-num .unit { font-size: 0.4em; margin-left: 0.16em; }
-.pair-num .unit-zero { font-size: 0.62em; font-weight: 300; }
+@media (min-width: 1024px) and (max-height: 820px) { .t-num1 { font-size: 52px; } .t-num2 { font-size: 34px; } }
 
-/* Вход: текст слева поверх живой сцены, затемнение только под текстом */
-.intro { background: linear-gradient(180deg, rgba(8, 8, 21, 0.5) 0%, rgba(8, 8, 21, 0.9) 34%, rgba(8, 8, 21, 0.97) 60%); }
-/* v19, телефон: подписи сцены не просвечивают сквозь текст входа */
-@media (max-width: 1023px) { .intro { background: linear-gradient(180deg, rgba(8, 8, 21, 0.6) 0%, #080815 14%); } }
-@media (min-width: 1024px) {
-  .intro { background: linear-gradient(90deg, rgba(8, 8, 21, 0.96) 0%, rgba(8, 8, 21, 0.9) 30%, rgba(8, 8, 21, 0.55) 46%, rgba(8, 8, 21, 0) 62%); }
-}
-/* на входе сцена уменьшена: подписи слоёв мельче, чтобы не слипались на 1280 px */
-.scene:has([data-intro]) [data-label] { font-size: 14px !important; }
-.intro-title { font-size: clamp(31px, min(3.5vw, 5.6vh), 56px); font-weight: 500; line-height: 1.08; letter-spacing: -0.028em; }
-.intro-num { font-size: clamp(44px, min(4.4vw, 8vh), 72px); font-weight: 300; line-height: 0.95; letter-spacing: var(--tracking-display); font-variant-numeric: proportional-nums; white-space: nowrap; }
-.intro-num .unit { font-size: 0.42em; margin-left: 0.28em; }
-/* подпись автопоказа: плотное стекло, чтобы читалась поверх подписей сцены */
-.tour-card { border-radius: 22px; background: linear-gradient(180deg, rgba(28, 24, 68, 0.94), rgba(11, 10, 28, 0.96)); box-shadow: var(--shadow-live); }
+/* ---------- Плиты: светлое стекло 90 -> 70 %, кромка 1 px, блик сверху, лиловая тень ---------- */
+.plate { background: var(--glass-plate); border-radius: 28px; box-shadow: var(--glass-edge), var(--shadow-plate); }
+.nest { background: var(--glass-nest); border-radius: 18px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8); }
+@media (max-width: 1023px) { .plate { border-radius: 22px; } }
 
+/* ---------- Плитка шага: стеклянный градиент 145 градусов ----------
+   Слои снизу вверх: градиент тона (кроссфейд 400 мс) -> блик слева сверху (::before) -> два стеклянных листа справа -> кромка.
+   Тёмная зона слева сверху, где текст: белый на t0 и t1 не хуже 4,5:1; светлый t2 только в правом нижнем углу под листами.
+   Зерна нет: на нежном градиенте оно даёт грязь. */
+.tile {
+  --sh: 60, 45, 150; --rx: 0deg; --ry: 0deg; --lift: 0px;
+  position: relative; isolation: isolate; overflow: hidden; border-radius: 28px; color: #fff;
+  text-shadow: 0 1px 12px rgba(30, 20, 90, 0.22);
+  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(var(--lift));
+  transition: transform var(--dur-hover) var(--ease-soft);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -28px 40px -24px rgba(255, 255, 255, 0.22),
+    0 2px 4px rgba(var(--sh), 0.14),
+    0 18px 32px -14px rgba(var(--sh), 0.36),
+    0 44px 64px -34px rgba(var(--sh), 0.28);
+}
+.tile[data-tone="attack"] { --sh: 190, 55, 65; }
+.tile[data-tone="gap"] { --sh: 215, 140, 45; }
+.tile[data-tone="defense"] { --sh: 25, 120, 80; }
+.tile[data-tone="customer"] { --sh: 95, 75, 210; }
+.tile[data-tone="report"] { --sh: 35, 30, 80; }
+.tile-ink { color: var(--color-ink); text-shadow: none; }
+/* на градиенте единица и счётчик шага бледнее, но не ниже AA */
+.tile .opacity-80 { opacity: 0.94; }
+.tile .opacity-90 { opacity: 1; }
+.tile .t-num1 .u, .tile .t-num2 .u { opacity: 0.86; }
+.tile-bg { position: absolute; inset: 0; z-index: -3; opacity: 0; transition: opacity 400ms var(--ease-soft);
+  background: linear-gradient(145deg, var(--t0) 0%, var(--t0) 14%, var(--t1) 66%, var(--t2) 112%); }
+.tile-bg[data-on] { opacity: 1; }
+/* блик сверху слева: слабый, чтобы капс-метка в углу держала контраст */
+.tile::before { content: ""; position: absolute; inset: 0; z-index: -2; pointer-events: none;
+  background: radial-gradient(90% 70% at 0% 0%, rgba(255, 255, 255, 0.14) 0%, transparent 60%); }
+/* стеклянные листы: 2 штуки справа, повёрнуты, без blur; едут за наклоном чуть быстрее фона и меняют место по тону */
+.tile-sheet { position: absolute; z-index: -1; pointer-events: none; border-radius: 22px; aspect-ratio: 1;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03) 70%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 12px 24px -12px rgba(var(--sh), 0.4);
+  transition: transform 600ms var(--ease-soft); }
+.tile-sheet-a { --r: -9deg; --dx: 0px; right: -11%; top: 50%; width: 42%; max-width: 200px;
+  transform: translate3d(calc(var(--dx) + var(--px, 0) * -7px), calc(var(--py, 0) * -6px), 0) rotate(var(--r)); }
+.tile-sheet-b { --r: -3deg; --dx: 0px; right: 4%; top: 68%; width: 30%; max-width: 140px; opacity: 0.85;
+  transform: translate3d(calc(var(--dx) + var(--px, 0) * -4px), calc(var(--py, 0) * -3px), 0) rotate(var(--r)); }
+.tile[data-tone="gap"] .tile-sheet-a { --r: -6deg; --dx: -10px; }
+.tile[data-tone="defense"] .tile-sheet-a { --r: -11deg; --dx: 6px; }
+.tile[data-tone="defense"] .tile-sheet-b { --r: -5deg; }
+.tile[data-tone="customer"] .tile-sheet-a { --r: -7deg; --dx: -6px; }
+.tile[data-tone="customer"] .tile-sheet-b { --r: -1deg; }
+.tile[data-tone="report"] .tile-sheet-a { --r: -10deg; --dx: 8px; }
+.tile[data-tone="report"] .tile-sheet { background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.02)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+/* тона приглушены (насыщенность ниже прежних на 10-15 %), одна тональная семья по светлоте */
+.tone-attack { --t0: #AA2D2D; --t1: #BE3849; --t2: #EC93A6; }
+.tone-gap { --t0: #EE9A3A; --t1: #F5BE62; --t2: #FBE3B0; }
+.tone-defense { --t0: #0D663F; --t1: #13794B; --t2: #8BCF9C; }
+.tone-customer { --t0: #4334BC; --t1: #6448D2; --t2: #D088C8; }
+.tone-report { --t0: #17161F; --t1: #2A2645; --t2: #4A417F; }
+button.tile { text-align: left; }
+button.tile:active { --lift: -1px; transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-1px) scale(0.985); transition-duration: var(--dur-press); }
+@media (hover: hover) {
+  button.tile:hover { --lift: -3px; }
+  button.tile:hover .tile-go { transform: translateX(3px); }
+}
+.tile-go { transition: transform var(--dur-hover) var(--ease-soft); }
 
-/* ---------- Акцент референсов: двухтоновый заголовок как «Crypto» у HexaCoin, светлее оригинала #a008e0 ради контраста ---------- */
-.gold-text {
-  /* v19: сплошной цвет вместо градиента в буквах, как слово Twin в знаке; #bb7dff даёт 7:1 на #080815 */
-  color: #bb7dff;
-}
-/* светящаяся нить по низу шапки: индиго -> фиолет -> маджента, гаснет к краям */
-.gold-rule {
-  position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none; z-index: 1;
-  background: linear-gradient(90deg, rgba(67,97,238,0) 0%, #4361ee 14%, #9000f8 40%, #c48bff 50%, #9000f8 60%, #b03fc4 86%, rgba(176,63,196,0) 100%);
-}
-/* разделитель на листе */
-.gold-hr { border-top: 1px solid transparent; border-image: linear-gradient(90deg, #c39bff, #9000f8 45%, #6d3cf5 80%, #b9a4f0) 1; }
-/* активный шаг: подсвеченная пилюля на стекле, фиолетовое свечение снизу */
-.seg-gold {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(144, 0, 248, 0.2));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(196, 150, 255, 0.32), 0 4px 18px -6px rgba(144, 0, 248, 0.7);
-}
-/* фон всего приложения: почти чёрный с фиолетовым отливом; фиолет-индиго сверху слева, маджента справа снизу (HexaCoin, security-alert-glass) */
-.app-glow::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(48% 38% at 18% -8%, rgba(110, 50, 235, 0.34), transparent 72%),
-    radial-gradient(34% 40% at 104% 96%, rgba(170, 45, 160, 0.24), transparent 70%);
-}
+/* ---------- Сегмент и переключатель языка: белая дорожка-пилюля, активный чёрный ---------- */
+.seg { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.66); box-shadow: var(--glass-edge), var(--shadow-plate); }
+.seg-item { position: relative; height: 40px; padding: 0 18px; border-radius: 999px; white-space: nowrap; color: var(--color-ink-2);
+  font-size: 15px; font-weight: 500; letter-spacing: -0.01em; transition: color 150ms var(--ease-out); }
+.seg-item:hover:not(:disabled) { color: var(--color-ink); }
+.seg-item[data-pressed], .seg-item[aria-pressed="true"] { color: #fff; }
+.seg-item:disabled { color: rgba(102, 102, 111, 0.45); cursor: not-allowed; }
+.seg-on { position: absolute; inset: 0; border-radius: 999px; background: var(--color-ink); }
+.seg-sm .seg-item { height: 36px; padding: 0 12px; font-size: 13px; font-weight: 600; }
+/* переключатель карт в шапке нижней плиты: плоский, ниже сегмента шагов */
+.seg-in { padding: 3px; background: var(--color-surface-2); box-shadow: none; }
+.seg-in .seg-item { height: 30px; padding: 0 12px; font-size: 13px; font-weight: 600; letter-spacing: 0; }
+/* Сегмент шагов до 1024 px: пять шагов делят всю ширину и помещаются на 375 без прокрутки (правило .seg-item вне слоёв перебивало px-3) */
+@media (max-width: 1023.98px) { .seg-steps .seg-item { flex: 1 1 auto; padding: 0 6px; } }
+@media (max-width: 359.98px) { .seg-steps .seg-item { padding: 0 4px; font-size: 14px; letter-spacing: -0.015em; } }
 
-/* свечение поверх 3D-холста: экран-смешение, статично, не стоит кадров */
-.scene-glow { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
-  background: radial-gradient(50% 42% at 12% -6%, rgba(90, 60, 240, 0.26), transparent 72%), radial-gradient(40% 36% at 78% 108%, rgba(170, 45, 160, 0.16), transparent 70%); }
+/* ---------- Тумблер свой: 36x22, track -> ink ---------- */
+.switch { position: relative; flex: none; width: 36px; height: 22px; border-radius: 999px; background: var(--color-track); transition: background-color 150ms var(--ease-out); }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 2px rgba(14, 14, 17, 0.18); transition: transform 180ms var(--ease-out); }
+.switch[aria-checked="true"], .switch[data-checked] { background: var(--color-ink); }
+.switch[aria-checked="true"]::after, .switch[data-checked]::after { transform: translateX(14px); }
 
-/* Свет за курсором: только мышь, без reduced motion; на проекторе курсора нет, это бонус */
-.lit { position: relative; isolation: isolate; }
-.lit::after {
-  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0;
-  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(144, 0, 248, 0.16), transparent 70%);
-  transition: opacity 200ms var(--ease-out);
-}
-@media (hover: hover) and (prefers-reduced-motion: no-preference) { .lit:hover::after { opacity: 1; } }
+/* ---------- Чип значения правила ---------- */
+.chip { display: inline-flex; height: 32px; align-items: center; gap: 6px; padding: 0 12px; border-radius: 999px; background: var(--glass-nest); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 1px 2px rgba(50, 40, 120, 0.06);
+  font-size: 15px; font-weight: 500; letter-spacing: -0.01em; color: var(--color-ink); white-space: nowrap; transition: background-color 120ms var(--ease-out); }
+button.chip:hover { background: #fff; }
+/* v21: редактируемый порог читается как поле: светлая подложка, тонкая рамка, карандаш, курсор ввода */
+button.chip-field { cursor: text; padding: 0 10px 0 12px; border-radius: 10px; background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-line), 0 1px 2px rgba(50, 40, 120, 0.05); }
+button.chip-field:hover { box-shadow: inset 0 0 0 1px var(--color-ink-3), 0 1px 2px rgba(50, 40, 120, 0.05); }
+button.chip-field .chip-pen { color: var(--color-ink-3); transition: color 120ms var(--ease-out); }
+button.chip-field:hover .chip-pen { color: var(--color-ink); }
+.chip-edit { display: inline-flex; height: 36px; align-items: center; gap: 2px; padding: 2px; border-radius: 14px; background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-line); }
+.chip-edit input { width: 96px; height: 32px; border: 0; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 500; color: var(--color-ink); }
+.chip-edit input:focus-visible { outline: 2px solid transparent; }
+.chip-edit:focus-within { box-shadow: inset 0 0 0 1px var(--color-ink); outline: 2px solid var(--color-brand); outline-offset: 2px; }
+.chip-step { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: var(--color-ink-2); }
+.chip-step:hover { background: var(--color-surface-2); color: var(--color-ink); }
 
-/* Тёмный корпус не плоский: фиолетовое свечение сверху, виньетка к краю и зерно 3% против полос (Siriva landing.css 738) */
-.corpus { position: relative; isolation: isolate; }
-.corpus::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(55% 45% at 30% -6%, rgba(110, 50, 235, 0.26), transparent 70%),
-    radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(4, 4, 12, 0.7) 100%);
-}
-.corpus::after {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.035; mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
+/* ---------- Точки: 6 px, шаг 10 px; появление 8 мс на точку, 0,4 -> 1 за 180 мс ---------- */
+@keyframes dot-in { from { transform: scale(0.4); opacity: 0; } }
+.dot-in { transform-box: fill-box; transform-origin: center; animation: dot-in 180ms var(--ease-out) both; }
 
 @layer components {
-  /* Контролы на Base UI: радиус 8, высота 48, подпись 18, кольцо фокуса 3 px.
-     Ховер 120 мс standard, нажатие scale 0,98 за 90 мс (спека п. 8); ховеры Tailwind v4 уже только для мыши */
+  /* Кнопки-пилюли: высота 48, контролы 15/600, нажатие scale .98 */
   .ctl {
-    @apply inline-flex h-12 items-center justify-center gap-2 rounded-lg px-4 text-[18px] font-semibold
-      transition-[background-color,border-color,color,transform] duration-[120ms] ease-[var(--ease-out)]
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-semibold tracking-[-0.01em]
+      transition-[background-color,box-shadow,color,transform] duration-[120ms] ease-[var(--ease-out)]
       active:scale-[0.98] active:duration-[90ms] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 select-none;
   }
-  /* главная: градиентная пилюля индиго -> фиолет со свечением (кнопки security-alert-glass и HexaCoin).
-     Текст белый: 5,0:1 на #4361ee у левого края, 5,8:1 в середине, 5,9:1 на #9000f8 справа */
-  .ctl-main {
-    @apply text-gold-on rounded-full;
-    background: linear-gradient(100deg, #4361ee 0%, #6d3cf5 48%, #9000f8 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(20, 6, 60, 0.3), 0 0 0 1px rgba(196, 150, 255, 0.35), 0 8px 28px -8px rgba(110, 60, 245, 0.65), 0 4px 22px -10px rgba(144, 0, 248, 0.7);
-    transition: filter 120ms var(--ease-out), transform 120ms var(--ease-out), box-shadow 200ms var(--ease-out);
-  }
-  .ctl-main:not(:disabled):hover { filter: brightness(1.06) saturate(1.05); }
-  .ctl-main .next { color: var(--color-gold-on); transition: transform 200ms var(--ease-out); }
+  /* главная: чёрная пилюля 52, тень, hover #26262B */
+  .ctl-main { @apply h-[52px] bg-ink text-white; box-shadow: var(--shadow-pill); }
+  .ctl-main:not(:disabled):hover { background: #26262B; }
+  .ctl-main .next { transition: transform 200ms var(--ease-out); }
   .ctl-main:not(:disabled):hover .next { transform: translateX(3px); }
-  .ctl-main:disabled { filter: saturate(0.4); }
-  /* вторичная: стеклянная пилюля с обводкой */
-  .ctl-quiet, .ctl-scene { @apply rounded-full border border-white/15 bg-white/[0.04] text-ivory backdrop-blur-md hover:border-white/25 hover:bg-white/[0.08]; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
-  /* стеклянная карточка: полупрозрачный фон, грань 1 px, внутреннее свечение, скругление 22 */
-  .glass { border-radius: 22px; background: linear-gradient(180deg, rgba(30, 26, 72, 0.55), rgba(14, 12, 34, 0.5)); box-shadow: var(--shadow-lift); }
-  .glass-hover:hover { box-shadow: var(--shadow-lift-hover); }
+  /* вторая: белая пилюля; на белом с волосяной границей */
+  .ctl-quiet { @apply text-ink; background: rgba(255, 255, 255, 0.7); box-shadow: var(--glass-edge), var(--shadow-plate); }
+  .ctl-quiet:not(:disabled):hover { background: rgba(255, 255, 255, 0.92); }
+  .plate .ctl-quiet, .nest .ctl-quiet, .sheet .ctl-quiet { background: rgba(255, 255, 255, 0.72); box-shadow: inset 0 0 0 1px var(--color-line), 0 1px 2px rgba(50, 40, 120, 0.06); }
+  /* тихая текстовая */
+  .ctl-ghost { @apply bg-transparent px-3 text-ink-2 hover:text-ink; }
+  /* scene: контролы на белой плите сцены (F2) - серая пилюля surface-2, без рамки */
+  .ctl-scene { @apply rounded-full text-ink; background: rgba(255, 255, 255, 0.82); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 1px 2px rgba(50, 40, 120, 0.08), 0 8px 18px -10px rgba(60, 45, 150, 0.25); }
+  .ctl-scene:not(:disabled):hover { background: #fff; }
+  /* старое «стекло» v19 в непеределанных шагах: вложенное светлое стекло с кромкой */
+  .glass { border-radius: 18px; background: var(--glass-nest); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8); }
+  .glass-hover:hover { background: var(--glass-nest-hover); }
 }
 
-/* Шаг панели: вход 200 мс снизу на 8 px, выход мгновенный (не держит ввод) */
-@keyframes step-in { from { opacity: 0; transform: translateY(8px); } }
-.step-in { animation: step-in 200ms var(--ease-soft) both; }
+/* scene (F2): сцена на белой плите, холст прозрачный, без свечения (бриф v20, п. «3D-сцена на светлом») */
+/* сцена: стеклянная плита под прозрачным холстом; ни blur, ни backdrop над холстом (пересчёт каждый кадр) */
+.scene { border-radius: 28px; overflow: hidden; color: var(--color-ink); box-shadow: var(--glass-edge), var(--shadow-plate);
+  background: radial-gradient(70% 60% at 100% 0%, rgba(214, 206, 255, 0.35), transparent 70%), linear-gradient(165deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.78) 100%); }
+@media (max-width: 1023px) { .scene { border-radius: 22px; } }
+/* scene: плашка «Задача кейса» поверх сцены - светлая пилюля surface-2, текст ink-2 и ink (разметка в Panel.tsx, стиль здесь) */
+.scene .case-task { background: rgba(255, 255, 255, 0.82); color: var(--color-ink-2); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 1px 2px rgba(50, 40, 120, 0.08), 0 8px 18px -10px rgba(60, 45, 150, 0.25); font-weight: 500; }
+.scene .case-task:hover { background: #fff; color: var(--color-ink); }
+.scene .case-task .text-white { color: var(--color-ink); font-weight: 600; }
 
-/* Карточка дыры: из точки чуть ниже, 360 мс settle */
-@keyframes hole-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
-@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
-.hole-card { animation: hole-in 360ms var(--ease-settle) both; transform-origin: 50% 0; }
-.hole-row { animation: rise 280ms var(--ease-soft) both; }
+/* Подпись автопоказа: белая плита поверх сцены */
+.tour-card { border-radius: 22px; background: rgba(255, 255, 255, 0.9); box-shadow: var(--glass-edge), 0 1px 2px rgba(50, 40, 120, 0.06), 0 18px 40px -16px rgba(60, 45, 150, 0.32); }
 
-/* Отчёт: три числа сводки по очереди, шкалы рисуются слева направо */
-.rep-num { animation: rise 360ms var(--ease-soft) both; }
+/* Разделитель на листе */
+.hr-line { border-top: 1px solid var(--color-line); }
+.hero-num, .second-num, .pair-num { font-weight: 500; letter-spacing: -0.035em; line-height: 1; white-space: nowrap; }
+.hero-num { font-size: clamp(52px, min(5vw, 9vh), 72px); }
+.second-num { font-size: 40px; }
+.pair-num { font-size: clamp(34px, min(3vw, 6vh), 52px); }
+.unit { color: var(--color-ink-3); font-weight: 500; letter-spacing: -0.01em; }
+.hero-num .unit, .second-num .unit, .pair-num .unit { font-size: 0.42em; margin-left: 0.14em; }
+
+/* Свет за курсором v19: на светлой теме выключен */
+.lit { position: relative; }
+
+/* Появление стекла: плита и плитка opacity 0 -> 1 и подъём на 10 px, 560 мс, шаг 60 мс. Только при монтировании,
+   заливка backwards: после конца анимация не держит transform, наклон и hover работают. */
+@keyframes glass-in { from { opacity: 0; transform: translateY(10px); } }
+.plate, .scene, .tile { animation: glass-in var(--dur-in) var(--ease-soft) backwards; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+[data-cover="left"] { --i: 0; }
+#main .scene { --i: 1; }
+aside > .tile { --i: 1; }
+aside > .plate { --i: 2; }
+nav > .tile:nth-child(1) { --i: 2; } nav > .tile:nth-child(2) { --i: 3; } nav > .tile:nth-child(3) { --i: 4; }
+nav > .tile:nth-child(4) { --i: 5; } nav > .tile:nth-child(5) { --i: 6; }
+/* Шаг панели: смена шага, мягкий кроссфейд с подъёмом на 6 px */
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes step-rise { from { opacity: 0; transform: translateY(6px); } }
+.step-in { animation: step-rise 360ms var(--ease-soft) both; }
+@keyframes rise { from { opacity: 0; } }
+.rep-num { animation: fade-in 200ms var(--ease-out) both; }
 @keyframes bar-in { from { transform: scaleX(0); } }
 .rep-bar { transform-origin: 0 50%; animation: bar-in 700ms var(--ease-out) 240ms both; }
 
-
-
-/* Карточка «как это видит клиент»: тёмное стекло как «Security Alert», без корпуса устройства */
-.client-card {
-  background: linear-gradient(180deg, rgba(28, 24, 68, 0.88), rgba(9, 8, 24, 0.93));
-  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 0 0 0 1px rgba(200, 190, 255, 0.13), inset 0 0 40px rgba(130, 70, 240, 0.09), 0 30px 60px -24px rgba(0, 0, 0, 0.85), 0 0 60px -20px rgba(144, 0, 248, 0.4);
-}
-.client-card :focus-visible { outline-color: var(--color-stop); outline-offset: 2px; border-radius: 999px; }
+/* Экран клиента (F5): простая белая плита 390 px, кнопки столбиком */
 .client-cta, .client-sec {
   display: flex; height: 46px; flex: 1 1 0; min-width: 0; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 0 14px;
-  font-size: 15px; font-weight: 600; white-space: nowrap; transition: filter 120ms var(--ease-out), background-color 120ms var(--ease-out), transform 90ms var(--ease-out); user-select: none;
+  font-size: 15px; font-weight: 600; white-space: nowrap; transition: background-color 120ms var(--ease-out), transform 90ms var(--ease-out); user-select: none;
 }
-/* «Это не я» у клиента: та же градиентная пилюля, белый текст от 5,0:1 */
-.client-cta { color: #fff; background: linear-gradient(100deg, #4361ee, #6d3cf5 48%, #9000f8); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 22px -8px rgba(144, 0, 248, 0.75); }
-.client-cta:hover { filter: brightness(1.06); }
-.client-sec { border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05); color: var(--color-ink); }
-.client-sec:hover { background: rgba(255, 255, 255, 0.1); }
+.client-cta { color: #fff; background: var(--color-ink); box-shadow: var(--shadow-pill); }
+.client-cta:hover { background: #26262B; }
+.client-sec { background: var(--color-surface); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-line); }
+.client-sec:hover { background: var(--color-surface-2); }
 .client-cta:active, .client-sec:active { transform: scale(0.98); }
-/* на телефоне кнопки карточки стопкой: в ряд подписи не помещаются */
-@media (max-width: 639px) { .client-row > .client-cta, .client-row > .client-sec { flex: none; } }
-.client-link { height: 32px; flex-shrink: 0; font-size: 15px; color: var(--color-ink-3); text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.2); text-underline-offset: 3px; }
+.client-col > .client-cta, .client-col > .client-sec { flex: none; height: 48px; }
+.client-link { height: 32px; flex-shrink: 0; font-size: 15px; color: var(--color-ink-2); text-decoration: underline; text-decoration-color: var(--color-line); text-underline-offset: 3px; }
 .client-link:hover { color: var(--color-ink); }
-/* иконка-предупреждение в светящемся квадрате, как узлы референса */
-.alert-chip { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; color: #ffd6e0;
-  background: linear-gradient(160deg, rgba(255, 92, 122, 0.42), rgba(150, 30, 80, 0.38)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 0 0 1px rgba(255, 140, 170, 0.35), 0 0 22px -4px rgba(255, 92, 122, 0.55); }
-/* шкала риска: мята -> фиолет -> розово-красный, точка на значении риска */
-.risk-track { position: relative; height: 6px; border-radius: 999px; background: linear-gradient(90deg, #1fcfae, #9000f8 52%, #ff5c7a); box-shadow: 0 0 14px -2px rgba(255, 92, 122, 0.45); }
-.risk-dot { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 999px; transform: translate(-50%, -50%); background: #fff; box-shadow: 0 0 0 3px rgba(255, 92, 122, 0.45), 0 0 14px rgba(255, 92, 122, 0.8); }
+.alert-chip { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; color: #fff; background: var(--color-leak); }
 @keyframes spin { to { transform: rotate(360deg); } }
-.client-spin { width: 18px; height: 18px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--color-stop); animation: spin 700ms linear infinite; }
-/* смена содержимого карточки: 220 мс снизу на 8 px, причины по очереди через 60 мс */
-.client-swap { animation: step-in 220ms var(--ease-soft) both; }
-.client-reason { animation: rise 280ms var(--ease-soft) both; }
+.client-spin { width: 18px; height: 18px; border-radius: 999px; border: 2px solid var(--color-track); border-top-color: var(--color-ink); animation: spin 700ms linear infinite; }
+.client-swap { animation: fade-in 200ms var(--ease-out) both; }
+.client-reason { animation: fade-in 200ms var(--ease-out) both; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-delay: 0ms !important; }
-  /* смена шага остаётся кроссфейдом 100 мс без сдвига */
-  @keyframes fade-only { from { opacity: 0; } }
-  .step-in { animation: fade-only 100ms linear both !important; animation-duration: 100ms !important; }
+  .tile, .tile-sheet { --rx: 0deg !important; --ry: 0deg !important; --px: 0 !important; --py: 0 !important; --lift: 0px !important; }
 }
 
-/* Печать отчёта: белый лист A4 без интерфейса */
+/* Печать отчёта: светлая тема уже печатная, убираем интерфейс и тени */
 @media print {
   @page { size: A4; margin: 16mm; }
-  :root {
-    /* светлый лист, акцент глубокий фиолетовый; контраст на #f7f6fb: ink 16,9, ink-3 6,0, deep 11,5, leak 5,7, stop 5,2, акцент 7,0 */
-    --color-paper: #f7f6fb; --color-page: #efedf7; --color-line: #d9d5e8; --color-hair: #e6e3f0;
-    --color-ink: #15122b; --color-ink-2: #45415e; --color-ink-3: #5f5b78; --color-deep: #3b1a8a;
-    --color-leak: #c01845; --color-stop: #00756a; --color-stop-bg: #dcf1ee; --color-stop-line: #a6dbd3;
-    --color-gold-ink: #6a2fc2; --color-gold-line: #cdbdf0; --color-money: #7a3cf0;
-  }
-  .glass, .print-sheet { background: #fff !important; box-shadow: none !important; }
   html, body, #root { height: auto; background: #fff !important; }
   .no-print { display: none !important; }
-  .print-sheet { box-shadow: none !important; background: #fff !important; border: 0 !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; }
+  body::before { display: none; }
+  /* печатная версия чистая: без фона, стекла, теней и градиентов, листы во всю ширину страницы */
+  .plate, .glass, .nest, .print-sheet { box-shadow: none !important; background: #fff !important; }
+  .print-sheet { margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; border-radius: 0 !important; }
+  .tile { color: var(--color-ink) !important; text-shadow: none !important; transform: none !important; background: #fff !important;
+    box-shadow: inset 0 0 0 1px var(--color-line) !important; border-radius: 16px !important; }
+  .tile-bg, .tile-sheet { display: none !important; }
+  .tile::before { display: none !important; }
+  .rep-num1 { font-size: 56px; } .rep-num2 { font-size: 36px; }
+  .rep-tile { padding: 0 0 24px !important; box-shadow: none !important; border-radius: 0 !important; border-bottom: 1px solid var(--color-line); }
   .break-avoid { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; transition: none !important; }
 }
 
-/* ---------- v15: лента переводов, «Как устроено» ---------- */
-/* большой лист поверх двойника: плотное тёмное стекло, как подпись автопоказа */
-/* v19: лист непрозрачный, текст входа под ним больше не просвечивает */
-.sheet { border-radius: 26px; background: linear-gradient(180deg, #1a1640, #0a091a); box-shadow: var(--shadow-lift), 0 40px 80px -30px rgba(0, 0, 0, 0.9), 0 0 80px -30px rgba(144, 0, 248, 0.45); }
-.sheet :focus-visible { outline-color: var(--color-stop-scene); }
-/* текстовая кнопка-ссылка: акцентом, со стрелкой */
-.link-btn { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; white-space: nowrap; font-size: 15px; font-weight: 600; color: var(--color-gold-ink); transition: color 120ms var(--ease-out); }
-.link-btn:hover { color: var(--color-champagne); }
+/* ---------- Листы: «Как устроено», лента переводов ---------- */
+/* лист поверх страницы (и поверх сцены): плотное стекло без backdrop-filter */
+.sheet { border-radius: 28px; background: radial-gradient(90% 70% at 100% 100%, rgba(214, 204, 255, 0.28), transparent 60%), linear-gradient(160deg, #FFFFFF, #F8F7FD);
+  box-shadow: var(--glass-edge), 0 1px 2px rgba(50, 40, 120, 0.06), 0 40px 80px -30px rgba(40, 30, 110, 0.4); }
+.print-sheet.glass { background: var(--glass-plate); box-shadow: var(--glass-edge), var(--shadow-plate); }
+.link-btn { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; white-space: nowrap; font-size: 15px; font-weight: 600; color: var(--color-brand); transition: color 120ms var(--ease-out); }
+.link-btn:hover { color: var(--color-ink); }
 .link-btn svg { transition: transform 200ms var(--ease-out); }
 .link-btn:hover svg { transform: translateX(2px); }
+.link-btn .rotate-180, .link-btn:hover .rotate-180 { transform: rotate(180deg); }
 .tab-pill { height: 40px; border-radius: 999px; padding: 0 16px; font-size: 15px; font-weight: 600; white-space: nowrap; color: var(--color-ink-2); transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out); }
 .tab-pill:hover { color: var(--color-ink); }
-.tab-pill[data-pressed] { background: rgba(255, 255, 255, 0.09); color: var(--color-ink); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+.tab-pill[data-pressed] { background: var(--color-ink); color: #fff; }
 @media (max-width: 479px) { .tab-pill { padding: 0 12px; font-size: 14px; } }
-/* честные переводы, задетые мерой: свой тон, тот же что у числа «Задето честных» */
-.feed-honest { background: rgba(176, 124, 255, 0.08); }
+.feed-honest { background: rgba(240, 154, 62, 0.12); }
 tr.feed-honest > td:first-child { padding-left: 12px; border-radius: 10px 0 0 10px; }
 tr.feed-honest > td:last-child { padding-right: 12px; border-radius: 0 10px 10px 0; }
 li.feed-honest { padding-left: 12px; padding-right: 12px; border-radius: 10px; }
-/* новая строка ленты входит снизу, остальные не двигаются рывком */
-.feed-row { animation: rise 240ms var(--ease-soft) both; }
-.how-h { margin-top: 18px; font-size: 18px; font-weight: var(--font-weight-head); letter-spacing: var(--tracking-head); color: var(--color-gold-ink); }
-/* цепочка: точки на одной линии, линия гаснет к последнему звену */
-.how-dot { position: absolute; left: 0; top: 0.5em; width: 7px; height: 7px; border-radius: 999px; background: var(--color-money); box-shadow: 0 0 10px rgba(176, 124, 255, 0.8); }
-@media (min-width: 1024px) {
-  .how-chain { position: relative; }
-  .how-chain::before { content: ""; position: absolute; left: 0; right: 8%; top: 3px; height: 1px; background: linear-gradient(90deg, rgba(176, 124, 255, 0.7), rgba(67, 97, 238, 0.35) 70%, rgba(67, 97, 238, 0)); }
-  .how-dot { top: 0; }
-}
-/* высота экрана на телефоне: dvh, чтобы нижние кнопки не уходили под панель Safari */
-.app-h { min-height: 100vh; min-height: 100dvh; }
-/* отчёт: три числа одного размера, между ними волосяная линия */
-.rep-three { font-size: clamp(40px, 6.2vw, 54px); font-weight: 300; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: proportional-nums; white-space: nowrap; }
-@media (min-width: 640px) {
-  .rep-top > div + div { padding-left: 24px; box-shadow: inset 1px 0 0 var(--color-line); }
-  .rep-top > div { padding-right: 16px; }
-}
-.link-btn .rotate-180 { transform: rotate(180deg); }
-.link-btn:hover .rotate-180 { transform: rotate(180deg); }
-@media print { .rep-top > div + div { box-shadow: inset 1px 0 0 #d9d5e8; } .rep-three { font-size: 40px; } }
+.feed-row { animation: fade-in 200ms var(--ease-out) both; }
+.how-h { margin-top: 18px; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; color: var(--color-ink); }
+.how-dot { position: absolute; left: 0; top: 0.5em; width: 6px; height: 6px; border-radius: 999px; background: var(--color-brand-dot); }
+/* F6: проверка модели точками. 100 точек = 100% денег попытки: 50 в ряд (шаг 10 px), на телефоне 25 */
+.how-dots { display: grid; grid-template-columns: repeat(25, 6px); gap: 4px; }
+.how-dots > i { width: 6px; height: 6px; border-radius: 999px; background: var(--color-track); }
+@media (min-width: 640px) { .how-dots { grid-template-columns: repeat(50, 6px); } }
+@media (min-width: 640px) and (max-width: 1023px) { .how-dots { grid-template-columns: repeat(50, 5px); gap: 3px; } .how-dots > i { width: 5px; height: 5px; } }
 
-/* v16: номер шага в верхней тройке отчёта (1 сейчас -> 2 с моделью -> 3 мошенник адаптировался) */
-.rep-step { display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--color-ink); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
-@media print { .rep-step { box-shadow: inset 0 0 0 1px #999; color: #333; } }
+/* F6: отчёт. Лист 880 на фоне, сверху тёмная плитка отчёта: вывод и три числа (одно главное, два вторых) */
+.rep-h2 { margin-top: 44px; font-size: 20px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: var(--color-ink); }
+/* v20-fix: подпись автопоказа на плите исходов «Клиента» по ширине плиты */
+@media (min-width: 1024px) { .tour-in-plate .tour-card { right: 24px; width: auto; } }
+/* v20-fix D5: подсказка прокрутки внутри плиты шага */
+.scroll-more { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent); }
+.rep-table { width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+.rep-table th { font-weight: 500; color: var(--color-ink-3); text-align: left; padding: 0 8px 8px; white-space: nowrap; }
+.rep-table td { padding: 10px 8px; border-top: 1px solid var(--color-line); vertical-align: top; }
+.rep-table th:first-child, .rep-table td:first-child { padding-left: 0; }
+.rep-table th:last-child, .rep-table td:last-child { padding-right: 0; }
+.rep-table .r { text-align: right; white-space: nowrap; }
+/* v20-fix D2: на телефоне таблицы отчёта помещаются в 375: заголовки переносятся, поля уже, длинные слова рвутся */
+@media (max-width: 639px) {
+  .rep-table { font-size: 14px; table-layout: auto; }
+  .rep-table th, .rep-table th.r { white-space: normal; padding: 0 5px 8px; vertical-align: bottom; line-height: 1.25; }
+  .rep-table td { padding: 9px 5px; }
+  .rep-table td:not(.r) { overflow-wrap: anywhere; }
+}
+.rep-num1 { font-size: clamp(52px, 7vw, 72px); line-height: 1; font-weight: 500; letter-spacing: -0.045em; white-space: nowrap; }
+.rep-num2 { font-size: clamp(34px, 4.2vw, 44px); line-height: 1; font-weight: 500; letter-spacing: -0.035em; white-space: nowrap; }
+.rep-num1 .u, .rep-num2 .u { font-size: 0.42em; letter-spacing: -0.01em; margin-left: 0.18em; opacity: 0.86; }
+/* листы плитки отчёта уходят в правый верхний угол, подальше от чисел; на телефоне их нет */
+.rep-tile .tile-sheet-a { top: 7%; right: -5%; }
+.rep-tile .tile-sheet-b { top: 21%; right: 10%; }
+@media (max-width: 639px) { .rep-tile .tile-sheet { display: none; } }
+.rep-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 999px; }
+.app-h { min-height: 100vh; min-height: 100dvh; }
+
+/* Первый кадр до загрузки кода (та же разметка в index.html) */
+.boot { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--color-bg); color: var(--color-ink-3); text-align: center; }
+.boot b { display: block; font-weight: 600; font-size: 28px; letter-spacing: -0.03em; color: var(--color-ink); }
+.boot i { font-style: normal; color: var(--color-brand); }
+.boot p { margin: 8px 0 0; font-size: 16px; }
+
+/* ---------- F8, вау 2: #client на телефоне жюри. Экран и есть телефон: без рамки, выреза и рук ----------
+   Высота 100dvh, отступы безопасных зон iPhone; прокрутка только запасная, если экран ниже 600 px. */
+.phone {
+  min-height: 100vh; min-height: 100dvh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+  padding: max(env(safe-area-inset-top, 0px), 6px) max(env(safe-area-inset-right, 0px), 8px) max(env(safe-area-inset-bottom, 0px), 8px) max(env(safe-area-inset-left, 0px), 8px);
+  max-width: 520px; margin: 0 auto;
+}
+@media (max-height: 600px) { .phone { height: auto; overflow: visible; } }
+.phone-screen { animation: ph-in 260ms var(--ease-out) both; }
+@keyframes ph-in { from { opacity: 0; transform: translateY(8px) scale(0.99); } }
+.phone-plate { transform-origin: 50% 0; transition: transform 420ms var(--ease-soft), opacity 420ms var(--ease-soft), filter 420ms var(--ease-soft); }
+.phone-plate.is-dim { transform: scale(0.94); opacity: 0.5; filter: saturate(0.6); }
+@media (max-height: 600px) { .phone-plate { min-height: 560px; } }
+/* метка «пример мошенничества»: красный текст на светлой пилюле, не тонированная карточка */
+.scam-tag { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-leak); background: rgba(255, 255, 255, 0.78); box-shadow: inset 0 0 0 1px rgba(212, 55, 42, 0.28); }
+.scam-tag::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: var(--color-leak-dot); }
+.msg { border-radius: 24px; }
+.msg-app { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 11px; color: #fff; background: var(--color-ink); }
+.avatar { display: grid; place-items: center; width: 52px; height: 52px; flex: none; border-radius: 999px; font-size: 20px; font-weight: 600; color: var(--color-ink);
+  background: var(--color-surface-2); box-shadow: inset 0 0 0 1px var(--color-line); }
+.pill-outline { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--color-ink-2);
+  box-shadow: inset 0 0 0 1px var(--color-line); background: rgba(255, 255, 255, 0.7); white-space: nowrap; }
+.client-spin-w { border-color: rgba(255, 255, 255, 0.3); border-top-color: #fff; }
+/* лист предупреждения: непрозрачный белый, поднимается снизу поверх перевода (единственное заметное движение) */
+.sheet-warn {
+  position: absolute; inset: 44px 0 0; z-index: 2; display: flex; flex-direction: column; overflow-y: auto;
+  padding: 22px 20px 16px; border-radius: 28px; background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 -1px 2px rgba(50, 40, 120, 0.05), 0 -18px 48px -16px rgba(60, 45, 150, 0.32);
+  animation: sheet-up 480ms var(--ease-soft) both;
+}
+@media (max-height: 820px) { .sheet-warn { inset: 24px 0 0; padding-top: 18px; } }
+@keyframes sheet-up { from { transform: translateY(104%); } }
+.final-in .client-link { height: 36px; }
+@media (prefers-reduced-motion: reduce) { .sheet-warn { animation: fade-in 120ms linear both; } }
+
+/* Вау 1: карта компромисса. Точка = событие: появляется с коротким толчком и одним кольцом; единственное заметное движение - подъём модели */
+.to-dot { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 999px; box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(50, 40, 120, 0.28); }
+.to-ghost { background: transparent; box-shadow: inset 0 0 0 2px var(--color-stop-dot), 0 0 0 2px rgba(255, 255, 255, 0.9); }
+.to-label { position: absolute; left: 10px; top: -8px; white-space: nowrap; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--color-ink-2);
+  background: rgba(255, 255, 255, 0.78); padding: 0 5px; border-radius: 6px; }
+
+
+.to-pop { animation: to-pop 460ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both; }
+.to-pop::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 0 2px currentColor; color: inherit; opacity: 0;
+  animation: to-ring 700ms var(--ease-out) 120ms both; }
+.to-pop.bg-brand::after { color: var(--color-brand-dot); }
+.to-pop.bg-stop-dot::after { color: var(--color-stop-dot); }
+.to-pop.bg-ink::after { color: var(--color-ink-3); }
+.to-fade { animation: to-fade 280ms var(--ease-out) 140ms both; }
+.to-line { animation: to-fade 360ms var(--ease-out) 760ms both; }
+.to-rise { transition: transform 900ms cubic-bezier(0.65, 0, 0.35, 1); }
+.to-rise .to-dot { transition: background-color 300ms linear 600ms; }
+@keyframes to-pop { from { transform: scale(0); } }
+@keyframes to-ring { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(3); } }
+@keyframes to-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .to-pop, .to-pop::after, .to-fade, .to-line { animation: none; }
+  .to-rise, .to-rise .to-dot { transition: none; }
+}

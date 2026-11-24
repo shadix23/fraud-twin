@@ -1,0 +1,12 @@
+{
+  "note": "Опорные точки карты компромисса для показа без сервера: демо-банк, схема student_crypto. Ходы банка посчитаны живым POST /redteam (uvicorn, 25.11.2026, 2 рестарта), профиль и обход модели из готовых прогонов (8 и 12 рестартов). Доли - нижние оценки поиска.",
+  "scheme": "student_crypto",
+  "preset": "demo",
+  "moves": [
+    { "rules": {}, "pct": 94.1, "withdrawn": 12242200, "honest": 22.7, "lower_bound": true },
+    { "rules": { "amount_limit": 500000 }, "pct": 94.1, "withdrawn": 12242200, "honest": 112.2, "lower_bound": true },
+    { "rules": { "amount_limit": 300000 }, "pct": 93.1, "withdrawn": 12110000, "honest": 332.0, "lower_bound": true }
+  ],
+  "model": { "honest": 24.3, "pct": 0 },
+  "rematch": { "honest": 24.3, "pct": 80.4, "withdrawn": 9479000, "lower_bound": true }
+}

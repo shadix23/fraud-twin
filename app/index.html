@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fraud Twin - краш-тест антифрода</title>
     <meta name="description" content="Fraud Twin: краш-тест антифрода банка. ИИ играет за мошенника и находит дыру в правилах раньше настоящих мошенников. Цифровой двойник банка, данных реальных людей нет." />
-    <meta name="theme-color" content="#080815" />
+    <meta name="theme-color" content="#E7E7EA" />
     <meta property="og:title" content="Fraud Twin - краш-тест антифрода" />
     <meta property="og:description" content="ИИ находит дыру в правилах банка раньше мошенников. Цифровой двойник банка, параметры двойника - гипотезы." />
     <meta property="og:type" content="website" />
@@ -13,24 +13,20 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- первый кадр до загрузки кода: тёмный фон, знак и строка состояния вместо пустого экрана -->
+    <!-- первый кадр до загрузки кода: светлый фон и знак вместо пустого экрана (v20) -->
     <style>
-      html, body { margin: 0; background: #080815; }
-      .boot { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: radial-gradient(60% 50% at 20% 0%, rgba(110, 60, 245, 0.22), transparent 70%), #080815; color: #a9a4c9; font: 400 18px/1.4 Montserrat, system-ui, -apple-system, 'Segoe UI', sans-serif; text-align: center; }
-      .boot b { display: block; font-weight: 600; font-size: 30px; letter-spacing: -0.02em; color: #f1effa; }
-      .boot i { font-style: normal; color: #c39bff; }
-      .boot p { margin: 10px 0 18px; }
-      .boot span { display: block; width: 168px; height: 3px; margin: 0 auto; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; position: relative; }
-      .boot span::after { content: ''; position: absolute; inset: 0; width: 40%; border-radius: 3px; background: linear-gradient(90deg, #4361ee, #9000f8); animation: boot 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
-      @keyframes boot { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
-      @media (prefers-reduced-motion: reduce) { .boot span::after { animation: none; width: 100%; opacity: 0.5; } }
+      html, body { margin: 0; background: #E7E7EA; }
+      .boot { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: #E7E7EA; color: #66666F; font: 400 16px/1.45 "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; }
+      .boot b { display: block; font-weight: 600; font-size: 28px; letter-spacing: -0.03em; color: #0E0E11; }
+      .boot i { font-style: normal; color: #5B4BD6; }
+      .boot p { margin: 8px 0 0; }
     </style>
     <!-- знак Fraud Twin (v19): буква F и её близнец, файлы в public/ -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   </head>
   <body>
-    <div id="root"><div class="boot" role="status"><div><b>Fraud <i>Twin</i></b><p>Строим двойник банка...</p><span aria-hidden="true"></span></div></div></div>
+    <div id="root"><div class="boot" role="status"><div><b>Fraud <i>Twin</i></b><p>Строим двойник банка...</p></div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

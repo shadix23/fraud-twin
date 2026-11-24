@@ -11,41 +11,25 @@ const M = (f: string) => `${import.meta.env.BASE_URL}models/${f}`
 export const MODELS = { atm: M('atm.glb'), server: M('server.glb'), laptop: M('laptop.glb'), camera: M('camera.glb'), coin: M('coin.glb'), pile: M('coinpiles.glb'), man: M('man.glb') }
 for (const u of Object.values(MODELS)) useGLTF.preload(u, false)
 
-export const PAL = { ivory: '#E8E5F5', bronze: '#7B5CE0', gold: '#A855F7', champagne: '#D6C4FF', graphite: '#17152E', emerald: '#1FCFAE' }
+// v20, сцена на светлом (бриф v20, п. «3D-сцена на светлом»): один матовый материал, один свет, без свечения.
+// graphite - фигуры и детали, clay - банкомат, сервер, подставки; brand и leak - только по смыслу
+export const PAL = { graphite: '#2A2A30', clay: '#C8C8CF', ringRest: '#B9B9C2', brandDot: '#7B6BE8', leakDot: '#F0564A', stopDot: '#3DB86B' }
 
-// ---------- свет: студия из софтбоксов вместо ламп ----------
-// Отражения в металле и стекле дают Lightformer-ы: широкий верх, узкие боковые, фиолетово-маджентовый акцент. Рендер окружения один раз.
+// ---------- свет: белые софтбоксы, без фона и цветных акцентов ----------
+// Окружение рендерится один раз и даёт мягкие блики матовым поверхностям; фон холста прозрачный, его даёт белая плита
 export function Studio() {
   return (
-    <Environment resolution={256} frames={1} environmentIntensity={1.25}>
-      <color attach="background" args={['#1A1640']} />
-      <Lightformer form="rect" intensity={2.4} color="#F1EFFA" position={[0, 7, 0]} rotation-x={Math.PI / 2} scale={[22, 9, 1]} />
-      <Lightformer form="rect" intensity={1.6} color="#F1EFFA" position={[-8, 1.5, 3]} rotation-y={Math.PI / 2} scale={[5, 12, 1]} />
-      <Lightformer form="rect" intensity={1.1} color="#CFC8F2" position={[8, 1, -2]} rotation-y={-Math.PI / 2} scale={[3, 12, 1]} />
-      <Lightformer form="rect" intensity={2.0} color="#B88CFF" position={[2, 0, 8]} scale={[14, 1.6, 1]} />
-      {/* фиолетовая свет-полоса: узкий софтбокс, даёт рамам и монетам металлический блик акцента */}
-      <Lightformer form="rect" intensity={3.2} color="#D49BFF" position={[-3, 4.5, 6]} rotation-x={-Math.PI / 5} scale={[18, 0.7, 1]} />
-      <Lightformer form="rect" intensity={1.0} color="#B88CFF" position={[0, 2, -8]} rotation-y={Math.PI} scale={[10, 3, 1]} />
+    <Environment resolution={128} frames={1} environmentIntensity={0.9}>
+      <Lightformer form="rect" intensity={2} color="#FFFFFF" position={[0, 7, 0]} rotation-x={Math.PI / 2} scale={[22, 9, 1]} />
+      <Lightformer form="rect" intensity={1.2} color="#FFFFFF" position={[-8, 1.5, 3]} rotation-y={Math.PI / 2} scale={[5, 12, 1]} />
+      <Lightformer form="rect" intensity={0.8} color="#FFFFFF" position={[8, 1, -2]} rotation-y={-Math.PI / 2} scale={[3, 12, 1]} />
+      <Lightformer form="rect" intensity={1} color="#FFFFFF" position={[2, 1, 8]} scale={[14, 4, 1]} />
     </Environment>
   )
 }
 
 // ---------- материалы ----------
-export const metal = (color: string, roughness = 0.3) =>
-  new THREE.MeshPhysicalMaterial({ color, metalness: 1, roughness, clearcoat: 0.4, clearcoatRoughness: 0.2 })
-
-// мягкая тень-пятно: дешевле теневых карт, держит предметы на подставках
-let blobTex: THREE.Texture | null = null
-export function blobTexture() {
-  if (blobTex) return blobTex
-  const c = document.createElement('canvas'); c.width = c.height = 128
-  const x = c.getContext('2d')!
-  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64)
-  g.addColorStop(0, 'rgba(0,0,0,0.75)'); g.addColorStop(0.45, 'rgba(0,0,0,0.35)'); g.addColorStop(1, 'rgba(0,0,0,0)')
-  x.fillStyle = g; x.fillRect(0, 0, 128, 128)
-  blobTex = new THREE.CanvasTexture(c)
-  return blobTex
-}
+export const matte = (color: string, roughness = 0.6) => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 })
 
 // модель вписывается в высоту h, основание на y = 0, центр по x/z
 function fit(obj: THREE.Object3D, h: number) {
@@ -57,7 +41,7 @@ function fit(obj: THREE.Object3D, h: number) {
   return g
 }
 
-// low-poly модели перекрашиваются в палитру по яркости исходного цвета: светлое - слоновая кость, среднее - бронза, тёмное - графит
+// low-poly модели перекрашиваются в два тона: светлое и среднее - глина, тёмное и экраны - графит. Свечения нет
 function restyle(root: THREE.Object3D) {
   const cache = new Map<THREE.Material, THREE.Material>()
   root.traverse((o) => {
@@ -67,11 +51,8 @@ function restyle(root: THREE.Object3D) {
       if (cache.has(src)) return cache.get(src)!
       const c = ((src as THREE.MeshStandardMaterial).color ?? new THREE.Color('#888')).clone()
       const hsl = { h: 0, s: 0, l: 0 }; c.getHSL(hsl)
-      let out: THREE.Material
-      if (hsl.s > 0.35 && hsl.h > 0.3 && hsl.h < 0.75) out = new THREE.MeshStandardMaterial({ color: '#120D2E', emissive: PAL.gold, emissiveIntensity: 0.55, roughness: 0.2 }) // экран
-      else if (hsl.l > 0.55) out = new THREE.MeshPhysicalMaterial({ color: PAL.ivory, roughness: 0.38, clearcoat: 0.7, clearcoatRoughness: 0.15 })
-      else if (hsl.l > 0.22) out = metal(PAL.bronze, 0.32)
-      else out = new THREE.MeshPhysicalMaterial({ color: PAL.graphite, metalness: 0.6, roughness: 0.35, clearcoat: 0.5 })
+      const screen = hsl.s > 0.35 && hsl.h > 0.3 && hsl.h < 0.75
+      const out = screen || hsl.l <= 0.22 ? matte(PAL.graphite, 0.5) : matte(PAL.clay, 0.62)
       cache.set(src, out); return out
     }
     m.material = Array.isArray(m.material) ? m.material.map(pick) : pick(m.material)
@@ -84,14 +65,12 @@ function useModel(url: string, h: number, paint: boolean) {
   return useMemo(() => { const o = g.scene.clone(true); if (paint) restyle(o); return fit(o, h) }, [g, h, paint])
 }
 
-// подставка узла вывода: графитовый диск с бронзовым кантом, тень-пятно на нём
+// подставка узла вывода: глиняный диск с кольцом; кольцо меняет цвет по состоянию (покой, через канал ушли деньги)
 export function Plinth({ r = 0.42, ring }: { r?: number; ring?: (m: THREE.MeshStandardMaterial | null) => void }) {
-  const tex = blobTexture()
   return (
     <group>
-      <mesh position-y={-0.03}><cylinderGeometry args={[r, r * 1.04, 0.06, 48]} /><meshPhysicalMaterial color={PAL.graphite} metalness={0.7} roughness={0.28} clearcoat={0.8} /></mesh>
-      <mesh position-y={-0.002} rotation-x={-Math.PI / 2}><torusGeometry args={[r * 0.98, 0.02, 10, 64]} /><meshStandardMaterial ref={ring} color="#3A3666" emissive="#000" roughness={0.3} metalness={0.4} /></mesh>
-      <mesh position-y={0.002} rotation-x={-Math.PI / 2}><circleGeometry args={[r * 0.85, 32]} /><meshBasicMaterial map={tex} transparent depthWrite={false} opacity={0.9} /></mesh>
+      <mesh position-y={-0.03}><cylinderGeometry args={[r, r * 1.04, 0.06, 48]} /><meshStandardMaterial color={PAL.clay} roughness={0.62} metalness={0} /></mesh>
+      <mesh position-y={0.004} rotation-x={-Math.PI / 2}><torusGeometry args={[r * 0.98, 0.022, 10, 64]} /><meshStandardMaterial ref={ring} color={PAL.ringRest} roughness={0.6} metalness={0} /></mesh>
     </group>
   )
 }
@@ -100,17 +79,20 @@ export function Plinth({ r = 0.42, ring }: { r?: number; ring?: (m: THREE.MeshSt
 export function ExitProp({ kind }: { kind: string }) {
   const atm = useModel(MODELS.atm, 0.9, true)
   const server = useModel(MODELS.server, 0.95, true)
-  const laptop = useModel(MODELS.laptop, 0.44, false)
+  const laptop = useModel(MODELS.laptop, 0.44, true)
   const o = kind === 'atm' ? atm : kind === 'crypto' ? laptop : server
   return <primitive object={o} rotation-y={kind === 'crypto' ? -Math.PI / 2.6 : -Math.PI / 2.3} />
 }
 
-// кучка монет на подставке вывода: растёт с выведенной суммой
-export function usePile() { return useModel(MODELS.pile, 0.22, false) }
+// кучка монет на подставке вывода: растёт с выведенной суммой; монеты за границей банка матовые leak-dot
+function usePaint(o: THREE.Object3D, color: string) {
+  return useMemo(() => { const m = matte(color, 0.55); o.traverse((x) => { const y = x as THREE.Mesh; if (y.isMesh) y.material = m }); return o }, [o, color])
+}
+export function usePile() { return usePaint(useModel(MODELS.pile, 0.22, false), PAL.leakDot) }
 
-// камера наблюдения на границе банка (фотореал Poly Haven)
+// камера наблюдения на границе банка: глина с графитом, как остальные предметы
 export function BankCamera() {
-  const o = useModel(MODELS.camera, 0.42, false)
+  const o = useModel(MODELS.camera, 0.42, true)
   return <primitive object={o} />
 }
 

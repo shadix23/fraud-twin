@@ -171,8 +171,8 @@ class RedteamModelTest(unittest.TestCase):
     def test_redteam_finds_better_scheme(self):
         from fraudtwin.redteam import search
         w = small_world()
-        r = search(w, "student_crypto", pop=8, gens=3)
-        self.assertEqual(r["evals"], 24)
+        r = search(w, "student_crypto", pop=8, gens=3, use_bank=False)
+        self.assertEqual(len(r["history"]), 24)
         self.assertGreaterEqual(r["best"]["fit"], r["base"]["fit"])
         self.assertEqual(len(w.clients), w.profile.n_clients)   # мир чистый после поиска
 

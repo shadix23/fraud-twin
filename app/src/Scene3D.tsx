@@ -1,17 +1,16 @@
-import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import { Bloom, EffectComposer, ToneMapping, Vignette } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
-import { BankCamera, ExitProp, PAL, Plinth, Studio, blobTexture, useCoinGeometry, usePersonGeometry, usePile } from './Props3D'
+import { ContactShadows, OrbitControls } from '@react-three/drei'
+import { BankCamera, ExitProp, PAL, Plinth, Studio, useCoinGeometry, usePersonGeometry, usePile } from './Props3D'
 import * as THREE from 'three'
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js'
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import type { OrbitControls as OrbitImpl } from 'three-stdlib'
 import type { Freeze, Scenario, TxEvent } from './data'
-import { EXIT_ORDER, EXIT_TITLE, LINE_MIN, SPEED, STOP, ease, exitKey } from './sceneShared'
+import { EXIT_ORDER, LINE_MIN, SPEED, STOP, ease, exitKey } from './sceneShared'
 import { kzt } from './format'
+import { LANGS, useLang, type Lang } from './i18n'
 
 // Атака как объект в пространстве. Ось X = глубина пути денег: жертвы -> слой 1 -> слой 2 -> граница банка -> вывод.
 // Каждый слой - полупрозрачная плоскость, 12 цепочек прошивают плоскости сеткой 4 x 3.
@@ -23,14 +22,15 @@ export interface Scene3DProps {
   // экран клиента: mark - цепочка его перевода (остальные притихают), gone - клиент отменил, цепочка гаснет
   mark?: number | null; gone?: number | null
   aside?: boolean // открыт телефон клиента: кадр уходит в свободную часть сцены
+  lang?: Lang // язык подписей внутри кадра (Canvas не видит контекст React, язык идёт через live)
 }
 
-// Палитра сцены v11: почти чёрный с фиолетовым отливом и свечения референсов (references/taste/security-alert-glass.md).
-// Ключи прежние: emerald = защита (мятно-циановый), gold/champagne/bronze = фиолетовый акцент в трёх ступенях
+// Палитра сцены v20 на белой плите (бриф v20, п. «3D-сцена на светлом»). Цвет только у денег и состояний:
+// в пути brand-dot, ушло коралл, остановлено зелёный; фигуры графит, предметы глина, затухание - к белому фону плиты
 export const T = {
-  bg0: '#080815', bg1: '#0D0C22', plane: '#14123A', frame: '#2E2A63', track: '#36316B', cloud: '#1F1C45',
-  ivory: '#F1EFFA', mist: '#B0ABCF', muted: '#948FB8',
-  emerald: '#1FCFAE', gold: '#B07CFF', champagne: '#D6C4FF', bronze: '#7B5CE0', risk: '#FF4D6D',
+  bg: '#FFFFFF', ink: '#0E0E11', ink3: '#66666F', graphite: PAL.graphite, track: '#D4D4DA', cloud: '#DDDDE2', floor: '#D9D9DE',
+  brand: '#5B4BD6', brandDot: PAL.brandDot, flowOut: '#E8493D', leak: '#D4372A', leakDot: PAL.leakDot,
+  stopMark: '#1FA055', stop: '#15803D', stopDot: PAL.stopDot, ringRest: PAL.ringRest,
 }
 
 const D = 3.4 // шаг между плоскостями
@@ -38,14 +38,15 @@ const TAIL_MIN = 0.35 * SPEED // после границы красный хво
 const FLASH_MIN = 0.6 * SPEED // зелёная вспышка заморозки
 const CLOUD = 3600
 const FLY_MS = 1300 // перелёт камеры между планами шагов (motion п. 5)
-const GLINT_MS = 900 // блик по ребру плоскости при её появлении (п. 7)
 const DRIFT = (1.5 * Math.PI) / 180 // дрейф в покое: не больше 1,5° за 8 с (п. 6)
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const col = (hex: string) => new THREE.Color(hex)
 const K = {
-  money: col(T.gold), head: col(T.champagne), leak: col(T.risk), stop: col(T.emerald), node: col(T.muted),
-  track: col(T.track), bg: col(T.bg1), cloud: col(T.cloud), plane: col(T.plane), frame: col(T.frame), bank: col(T.bronze),
+  money: col(T.brandDot), head: col(T.brand), leak: col(T.flowOut), leakDot: col(T.leakDot), stop: col(T.stopMark), frozen: col(T.stopDot),
+  node: col(T.graphite), track: col(T.track), bg: col(T.bg), cloud: col(T.cloud), ringRest: col(T.ringRest),
 }
+const PULSE_MIN = 0.35 * SPEED // смена состояния: масштаб 1 -> 1,12 -> 1 за 350 мс вместо свечения
+const pulse = (age: number) => (age >= 0 && age < PULSE_MIN ? 1 + 0.12 * Math.sin((Math.PI * age) / PULSE_MIN) : 1)
 let lastLayers: number | null = null // между монтированиями: чтобы переход «слоёв 2 -> 1» доигрывался
 
 // ---------- раскладка: формула, без случайности ----------
@@ -110,7 +111,7 @@ class Segs {
     this.max = max; this.width = width
     const g = new LineSegmentsGeometry()
     g.setPositions(new Float32Array(max * 6)); g.setColors(new Float32Array(max * 6))
-    const m = new LineMaterial({ linewidth: width, vertexColors: true, depthWrite: false }) // без записи глубины одинаковые пути не дробятся на пунктир
+    const m = new LineMaterial({ linewidth: width, vertexColors: true, depthWrite: false, toneMapped: false }) // без записи глубины одинаковые пути не дробятся на пунктир
     this.obj = new LineSegments2(g, m); this.obj.frustumCulled = false
     this.pos = (g.attributes.instanceStart as THREE.InterleavedBufferAttribute).data.array as Float32Array
     this.colr = (g.attributes.instanceColorStart as THREE.InterleavedBufferAttribute).data.array as Float32Array
@@ -149,12 +150,13 @@ function rng(seed: number) {
 type Live = { current: Scene3DProps }
 // подписи - обычный DOM поверх холста; позиции ставит кадр, React их не перерисовывает
 interface Dom { head: (HTMLDivElement | null)[]; bank: HTMLDivElement | null; exit: (HTMLDivElement | null)[]; exitSum: (HTMLSpanElement | null)[]; note: HTMLDivElement | null; noteIn: HTMLDivElement | null }
-const LABEL = 'pointer-events-none absolute left-0 top-0 whitespace-nowrap select-none will-change-transform [text-shadow:0_0_3px_#080815,0_0_8px_#080815]'
+const LABEL = 'pointer-events-none absolute left-0 top-0 whitespace-nowrap select-none will-change-transform'
 const REFOCUS = '|refocus' // после снятия фокуса камера плавно возвращается к плану шага
 
 export default function Scene3D(props: Scene3DProps) {
+  const { t: tr, lang } = useLang()
   const live = useRef(props)
-  live.current = props
+  live.current = { ...props, lang }
   const miss = useRef<() => void>(() => {})
   const sc = props.sc
   const sig = useMemo(() => layoutSignature(sc), [sc])
@@ -163,39 +165,34 @@ export default function Scene3D(props: Scene3DProps) {
   const n = sc.chains.length
   const P = Math.max(2, lay.L)
   const headers = [
-    { text: 'Жертвы', n: sc.chains.reduce((a, c) => a + c.victims.length, 0) },
-    ...Array.from({ length: P }, (_, j) => ({ text: `Дропы, слой ${j + 1}`, n: sc.chains.reduce((a, c) => a + (c.layers[j]?.length ?? 0), 0) })),
+    { text: tr.scene.victims, n: sc.chains.reduce((a, c) => a + c.victims.length, 0) },
+    ...Array.from({ length: P }, (_, j) => ({ text: tr.scene.layer(j + 1), n: sc.chains.reduce((a, c) => a + (c.layers[j]?.length ?? 0), 0) })),
   ]
   const compact = props.compact
   return (
     <div className="absolute inset-0 overflow-hidden" data-layout={sig} data-scene3d>
-      <Canvas frameloop={props.covered ? 'demand' : 'always'} dpr={[1, 2]} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+      <Canvas frameloop={props.covered ? 'demand' : 'always'} dpr={[1, 2]} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', toneMapping: THREE.NeutralToneMapping }}
         camera={{ fov: 38, near: 0.1, far: 200, position: [-6, 5, 12] }} role="img"
-        aria-label={`${n} цепочек атаки в трёх измерениях: жертвы, слои дропов, граница банка, вывод`}
+        aria-label={tr.scene.aria3d(n)}
         onPointerMissed={() => miss.current()}>
         <World sc={sc} lay={lay} live={live} compact={compact} miss={miss} dom={dom} />
-        {/* очень лёгкое свечение у монет и головок (фиолет ярче порога, розово-красный нет), виньетка вместо градиента фона */}
-        <EffectComposer multisampling={4} enableNormalPass={false}>
-          <Bloom mipmapBlur luminanceThreshold={0.42} luminanceSmoothing={0.25} intensity={0.7} radius={0.6} />
-          <Vignette offset={0.3} darkness={0.55} />
-          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        </EffectComposer>
+        {/* постобработки нет: на белой плите без bloom и виньетки, тонмаппинг NEUTRAL держит пастель чистой */}
       </Canvas>
       {/* телефон: те же подписи, короче и без счётчиков, чтобы четыре слоя читались на 375 px */}
       {headers.map((h, j) => (
-        <div key={`h${j}`} ref={(d) => { dom.current.head[j] = d }} data-label className={`${LABEL} text-center ${compact ? 'text-[14px]' : 'text-[16px]'} font-medium leading-tight text-[#F1EFFA]`}>
-          {compact ? (j === 0 ? h.text : `Дропы ${j}`) : h.text}{!compact && <div className="text-[14px] font-normal tabular-nums text-[#948FB8]">{h.n}</div>}
+        <div key={`h${j}`} ref={(d) => { dom.current.head[j] = d }} data-label className={`${LABEL} text-center text-[14px] font-semibold leading-tight text-ink`}>
+          {compact ? (j === 0 ? h.text : tr.scene.layerShort(j)) : h.text}{!compact && <div className="text-[13px] font-medium tabular-nums text-ink-3">{h.n}</div>}
         </div>
       ))}
-      <div ref={(d) => { dom.current.bank = d }} data-label className={`${LABEL} ${compact ? 'text-[14px]' : 'text-[16px]'} font-medium tracking-[0.01em] text-[#C39BFF]`}>Граница банка</div>
+      <div ref={(d) => { dom.current.bank = d }} data-label className={`${LABEL} text-[14px] font-semibold text-brand`}>{tr.scene.bank}</div>
       {lay.exits.map((x, k) => (
-        <div key={x.key} ref={(d) => { dom.current.exit[k] = d }} data-label className={`${LABEL} ${compact ? 'rounded-md bg-[#0B0A20]/80 px-1.5' : 'pl-3'} text-[16px] font-medium leading-tight text-[#F1EFFA]`}>
-          <div className={compact ? 'text-[14px] font-normal' : props.aside ? 'text-[14px]' : undefined}>{EXIT_TITLE[x.key]}</div>
-          <span ref={(s) => { dom.current.exitSum[k] = s }} className={`${compact ? 'text-[17px]' : props.aside ? 'text-[18px]' : 'text-[20px]'} font-semibold tabular-nums text-[#948FB8]`}>0 ₸</span>
+        <div key={x.key} ref={(d) => { dom.current.exit[k] = d }} data-label className={`${LABEL} ${compact ? 'rounded-lg bg-white/85 px-1.5 py-0.5' : 'pl-3'} text-[14px] font-semibold leading-tight text-ink`}>
+          <div>{tr.scene.exits[x.key]}</div>
+          <span ref={(s) => { dom.current.exitSum[k] = s }} className={`${compact ? 'text-[16px]' : 'text-[18px]'} font-semibold tabular-nums text-ink-3`}>0 ₸</span>
         </div>
       ))}
       <div ref={(d) => { dom.current.note = d }} className={LABEL} role="status">
-        <div ref={(d) => { dom.current.noteIn = d }} className="rounded-md bg-[#1D1A44]/90 px-2.5 py-1 text-[16px] text-[#F1EFFA] [text-shadow:none]" style={{ opacity: 0 }} />
+        <div ref={(d) => { dom.current.noteIn = d }} className="rounded-xl bg-white px-3 py-1.5 text-[14px] font-medium text-ink shadow-[0_1px_2px_rgba(14,14,17,0.06),0_8px_24px_-10px_rgba(14,14,17,0.25)]" style={{ opacity: 0 }} />
       </div>
     </div>
   )
@@ -212,64 +209,50 @@ function World({ sc, lay, live, compact, miss, dom }: {
 
   // ---------- объекты, которые обновляются каждый кадр ----------
   const parts = useMemo(() => {
-    // счета: шарики, пока грузится модель, затем силуэты людей на графитовых подставках (Props3D)
-    const nodes = instanced(new THREE.SphereGeometry(0.11, 18, 12), new THREE.MeshStandardMaterial({ roughness: 0.48, metalness: 0.25 }), lay.acc.size)
-    const bases = instanced(new THREE.CylinderGeometry(0.08, 0.086, 0.02, 28), new THREE.MeshPhysicalMaterial({ color: PAL.graphite, metalness: 0.8, roughness: 0.25, clearcoat: 1 }), lay.acc.size)
+    // счета: шарики, пока грузится модель, затем матовые графитовые фигуры на глиняных подставках (Props3D)
+    const nodes = instanced(new THREE.SphereGeometry(0.11, 18, 12), new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0 }), lay.acc.size)
+    const bases = instanced(new THREE.CylinderGeometry(0.08, 0.086, 0.02, 28), new THREE.MeshStandardMaterial({ color: PAL.clay, roughness: 0.62, metalness: 0 }), lay.acc.size)
     bases.instanceColor = null
-    // деньги в пути: металлические монеты; свечение берут из своего цвета, фиолет выходит за порог bloom, красное нет
-    const coinMat = new THREE.MeshStandardMaterial({ metalness: 1, roughness: 0.2 })
-    coinMat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n#ifdef USE_COLOR\ntotalEmissiveRadiance += vColor.rgb * 1.4;\n#endif') }
-    const dots = instanced(new THREE.SphereGeometry(1, 12, 8), coinMat, lay.maxLog * 4)
-    const bars = instanced(new THREE.BoxGeometry(0.06, 0.46, 0.06), new THREE.MeshBasicMaterial(), lay.maxLog * 2 + 8)
-    const rings = instanced(new THREE.RingGeometry(0.84, 1, 40), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, depthWrite: false }), (lay.maxFrz + lay.maxLog) * 2)
-    const cloud = instanced(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: K.cloud, depthWrite: false }), CLOUD)
+    // деньги в пути: матовые монеты без свечения, цвет по смыслу (brand-dot в банке, leak-dot за границей)
+    const dots = instanced(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0 }), lay.maxLog * 4)
+    const bars = instanced(new THREE.BoxGeometry(0.06, 0.46, 0.06), new THREE.MeshBasicMaterial({ toneMapped: false }), lay.maxLog * 2 + 8)
+    const rings = instanced(new THREE.RingGeometry(0.84, 1, 40), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, depthWrite: false, toneMapped: false }), (lay.maxFrz + lay.maxLog) * 2)
+    const cloud = instanced(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: K.cloud, depthWrite: false, toneMapped: false }), CLOUD)
     cloud.instanceColor = null; cloud.renderOrder = -2 // фон: точки не перекрывают линии и узлы
-    const tracks = new Segs(lay.tracks.length * 18 + 4, 1.5)
-    const gold = new Segs(lay.maxLog * 18 + 4, 2.25)
-    const red = new Segs(lay.maxLog * 20 + 4, 3.5)
-    const glint = new Segs(64, 2)
+    // потоки: тонкие дорожки, в пути 1,5 px, ушло 2,5 px; смешивание обычное
+    const tracks = new Segs(lay.tracks.length * 18 + 4, 1)
+    const gold = new Segs(lay.maxLog * 18 + 4, 1.5)
+    const red = new Segs(lay.maxLog * 20 + 4, 2.5)
     const r = rng(7)
     const g = () => { let s = 0; for (let k = 0; k < 4; k++) s += r(); return (s - 2) / 2 } // почти нормальное
-    const cloudPts = Array.from({ length: CLOUD }, () => [r(), g() * 3.1, g() * 2.7, 0.018 + r() * 0.02])
-    return { nodes, bases, dots, bars, rings, cloud, tracks, gold, red, glint, cloudPts }
+    const cloudPts = Array.from({ length: CLOUD }, () => [r(), g() * 3.1, g() * 2.7, 0.014 + r() * 0.016])
+    return { nodes, bases, dots, bars, rings, cloud, tracks, gold, red, cloudPts }
   }, [lay])
   useEffect(() => () => {
     for (const m of [parts.nodes, parts.bases, parts.dots, parts.bars, parts.rings, parts.cloud]) { m.geometry.dispose(); (m.material as THREE.Material).dispose() }
-    parts.tracks.dispose(); parts.gold.dispose(); parts.red.dispose(); parts.glint.dispose()
+    parts.tracks.dispose(); parts.gold.dispose(); parts.red.dispose()
   }, [parts])
 
-  // плоскость слоя: заливка + рамка + перекрестья под каждую цепочку
+  // панель слоя: матовое стекло без transmission (brand-dot 6%) и кромка brand-dot 55% в 1,5 px
   const planes = useMemo(() => Array.from({ length: P + 1 }, (_, j) => {
-    const { H, W, cells } = lay.g
-    // слой - лист дымчатого стекла в графитовой металлической раме: блики студии скользят по нему при облёте
-    const fill = new THREE.MeshPhysicalMaterial({ color: '#221E52', transparent: true, opacity: 0.42, roughness: 0.16, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, depthWrite: false, side: THREE.DoubleSide })
-    // рама слоя: фиолетовый металл (акцент чуть приглушён, чтобы граница банка оставалась главной)
-    const rim = new THREE.MeshPhysicalMaterial({ color: '#8F72F0', metalness: 0.9, roughness: 0.22, clearcoat: 0.7, clearcoatRoughness: 0.12, emissive: '#3A1F8C', emissiveIntensity: 0.55, transparent: true })
-    const geo = new LineSegmentsGeometry()
-    const pts: number[] = []
-    for (const c of cells) pts.push(0, c.y - 0.12, c.z, 0, c.y + 0.12, c.z, 0, c.y, c.z - 0.12, 0, c.y, c.z + 0.12)
-    geo.setPositions(pts)
-    const frame = new LineMaterial({ color: K.frame.getHex(), linewidth: 1.25, transparent: true, opacity: 1, depthWrite: false })
-    return { fill, rim, geo, frame, j, H, W, line: new LineSegments2(geo, frame) }
+    const { H, W } = lay.g
+    const fill = new THREE.MeshBasicMaterial({ color: T.brandDot, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })
+    const edge = rimLine(H, W, 1.5, 0.55)
+    return { fill, edge, j }
   }), [lay, P])
-  useEffect(() => () => planes.forEach((p) => { p.fill.dispose(); p.rim.dispose(); p.geo.dispose(); p.frame.dispose() }), [planes])
-  // граница банка: светлая фиолетовая рама и стекло с индиго-оттенком, чуть больше слоёв; над ней камера наблюдения
+  useEffect(() => () => planes.forEach((p) => { p.fill.dispose(); p.edge.geometry.dispose(); p.edge.material.dispose() }), [planes])
+  // граница банка: та же кромка, заливка плотнее (10%), чуть больше слоёв; над ней камера наблюдения
   const bank = useMemo(() => {
     const { H, W } = lay.g, y = H / 2 + 0.3, z = W / 2 + 0.3
-    // рама границы: полированная светлая лаванда, ярче рам слоёв
-    const rim = new THREE.MeshPhysicalMaterial({ color: '#B79CFF', metalness: 1, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.08, emissive: '#5A2BC0', emissiveIntensity: 0.62 })
-    const fill = new THREE.MeshPhysicalMaterial({ color: '#1E1A55', transparent: true, opacity: 0.6, roughness: 0.1, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, depthWrite: false, side: THREE.DoubleSide })
-    return { rim, fill, y, z }
+    const fill = new THREE.MeshBasicMaterial({ color: T.brandDot, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })
+    return { fill, edge: rimLine(y * 2, z * 2, 2, 0.75), y, z }
   }, [lay])
-  useEffect(() => () => { bank.rim.dispose(); bank.fill.dispose() }, [bank])
-  for (const o of planes.map((p) => p.line)) o.frustumCulled = false
-  const floorTex = useMemo(() => {
-    const c = document.createElement('canvas'); c.width = c.height = 256
-    const x = c.getContext('2d')!, g = x.createRadialGradient(128, 128, 0, 128, 128, 128)
-    g.addColorStop(0, 'rgba(48,30,120,0.55)'); g.addColorStop(0.5, 'rgba(26,18,72,0.3)'); g.addColorStop(1, 'rgba(10,8,30,0)')
-    x.fillStyle = g; x.fillRect(0, 0, 256, 256)
-    return new THREE.CanvasTexture(c)
-  }, [])
+  useEffect(() => () => { bank.fill.dispose(); bank.edge.geometry.dispose(); bank.edge.material.dispose() }, [bank])
+  // пол: сетка точек #D9D9DE, к краям растворяется в белом (тот же мотив, что в графиках: точка = узел)
+  const floor = useMemo(() => floorDots(), [])
+  useEffect(() => () => { floor.geometry.dispose(); (floor.material as THREE.Material).dispose() }, [floor])
+  const [shadowKey, setShadowKey] = useState('')
+  const shadowSig = useRef('')
   const floorRef = useRef<THREE.Group>(null)
   const ringMat = useRef<(THREE.MeshStandardMaterial | null)[]>([])
   const pileRefs = useRef<(THREE.Group | null)[]>([])
@@ -289,12 +272,10 @@ function World({ sc, lay, live, compact, miss, dom }: {
   const dragging = useRef(false)
   const lastTouch = useRef(0)
   const drift = useRef(0)
-  const glintAt = useRef(0)
   const noteShown = useRef<number | null>(null)
   const anim = useRef<{ p0: THREE.Vector3; t0: THREE.Vector3; p1: THREE.Vector3; t1: THREE.Vector3; start: number; dur: number } | null>(null)
   const shotKey = useRef('')
 
-  useEffect(() => { glintAt.current = performance.now() + 250 }, [lay]) // блик по рёбрам при появлении слоёв
   // шейдеры частиц, колец и красных линий собираем заранее: иначе первый вывод даёт подвисание кадра
   const scene = useThree((s) => s.scene)
   useEffect(() => {
@@ -356,8 +337,8 @@ function World({ sc, lay, live, compact, miss, dom }: {
     a: new THREE.Vector3(), b: new THREE.Vector3(), p: new THREE.Vector3(), e: new THREE.Vector3(), q: new THREE.Vector3(), w: new THREE.Vector3(),
     s: new THREE.Vector3(), c: new THREE.Color(), m: new THREE.Matrix4(), one: new THREE.Quaternion(), up: new THREE.Vector3(0, 1, 0),
     qs: new THREE.Quaternion(), qc: new THREE.Quaternion(), yaw: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.5), s2: new THREE.Vector3(),
-    shot: { p: new THREE.Vector3(), t: new THREE.Vector3() }, accP: new Map<number, THREE.Vector3>(), exitP: [] as THREE.Vector3[],
-    sums: {} as Record<string, number>, frozen: new Map<number, number>(), lastText: [] as string[], lastNote: '',
+    shot: { p: new THREE.Vector3(), t: new THREE.Vector3() }, fit: { p: new THREE.Vector3(), t: new THREE.Vector3() }, cam: new THREE.PerspectiveCamera(), accP: new Map<number, THREE.Vector3>(), exitP: [] as THREE.Vector3[],
+    sums: {} as Record<string, number>, frozen: new Map<number, number>(), lastText: [] as string[], lastNote: '', lastSum: [] as number[], bumpAt: [] as number[],
   }), [])
 
   useFrame((state, dt) => {
@@ -368,11 +349,12 @@ function World({ sc, lay, live, compact, miss, dom }: {
     const now = performance.now()
     const { width: SW, height: SH } = state.size
     // подпись к точке пространства: сдвиг dx/dy задаёт, какой стороной она прилегает к точке
-    const place = (el: HTMLElement | null | undefined, x: number, y: number, z: number, dx: string, dy: string, clampW = 0, fitRight = false) => {
+    const place = (el: HTMLElement | null | undefined, x: number, y: number, z: number, dx: string, dy: string, clampW = 0, fitRight = false, floorPx = 0) => {
       if (!el) return
       v.e.set(x, y, z).project(camera)
       let px = ((v.e.x + 1) / 2) * SW, py = ((1 - v.e.y) / 2) * SH
       if (clampW) { px = Math.min(SW - clampW / 2 - 12, Math.max(clampW / 2 + 12, px)); py = Math.max(py, 60) } // плашка не уходит за край сцены
+      if (floorPx) py = Math.min(py, SH - floorPx) // подпись под рамкой не уходит за нижний край сцены
       if (fitRight) px = dx === '0' ? Math.min(px, SW - el.offsetWidth - 8) : Math.max(px, el.offsetWidth / 2 + 6) // телефон: сумма у выхода не режется правым краем, подпись слоя левым
       el.style.transform = `translate(${px.toFixed(1)}px,${py.toFixed(1)}px) translate(${dx},${dy})`
       el.style.visibility = v.e.z < 1 ? 'visible' : 'hidden'
@@ -408,6 +390,27 @@ function World({ sc, lay, live, compact, miss, dom }: {
             const pad = Math.max(0, (x1 - 8 - (span + edge) * R.ts - lw - hb.width / 2) / 2)
             R.tx = 8 + edge * R.ts + pad + hb.width / 2 - SW / 2 - (h0 - SW / 2) * R.ts
           }
+        }
+      } else if (!compact && focus.current == null && shotKey.current && shotKey.current !== REFOCUS) {
+        // v20-fix: план камеры целиком в сцене и выше плашки «Задача кейса» (на «Защите» нижняя фигура жертв уходила под неё).
+        // Считаем по позе плана, а не по живой камере: облёт и дыхание не качают масштаб
+        const cr = gl.domElement.getBoundingClientRect()
+        const ct = document.querySelector('[data-case-task]')?.getBoundingClientRect()
+        const lo = ct && ct.width > 0 && ct.top > cr.top + SH * 0.5 && ct.top < cr.bottom ? ct.top - cr.top - 10 : SH - 14
+        const hi = 52 // подписи слоёв стоят над плоскостями
+        const C = v.cam, Lt = lay.L
+        shotFor(shotKey.current.split('|')[1], Lt, v.fit)
+        C.fov = camera.fov; C.near = camera.near; C.far = camera.far; C.aspect = SW / SH; C.clearViewOffset(); C.updateProjectionMatrix()
+        C.position.copy(v.fit.p); C.up.set(0, 1, 0); C.lookAt(v.fit.t); C.updateMatrixWorld()
+        let y0 = Infinity, y1 = -Infinity
+        const pt = (x: number, y: number, z: number) => { v.e.set(x, y, z).project(C); const py = ((1 - v.e.y) / 2) * SH; y0 = Math.min(y0, py); y1 = Math.max(y1, py) }
+        const { H, W } = lay.g
+        for (let j = 0; j <= Math.min(Lt, planes.length - 1); j++) for (const sy of [-1, 1]) for (const sz of [-1, 1]) pt(colX(j, Lt), sy * H / 2, sz * W / 2)
+        for (const sy of [-1, 1]) for (const sz of [-1, 1]) pt(bankX(Lt), sy * bank.y, sz * bank.z)
+        if (y1 > y0) {
+          R.ts = Math.max(0.6, Math.min(1, (lo - hi) / (y1 - y0)))
+          const up = lo - SH / 2 - (y1 - SH / 2) * R.ts, dn = hi - SH / 2 - (y0 - SH / 2) * R.ts
+          R.ty = Math.min(up, Math.max(dn, 0))
         }
       }
     }
@@ -460,36 +463,24 @@ function World({ sc, lay, live, compact, miss, dom }: {
       const g = planeRefs.current[j], pl = planes[j]
       const vis = j === 0 ? 1 : Math.min(1, Math.max(0, L - j + 1))
       if (g) { g.position.x = colX(j, L); g.visible = vis > 0.01 }
-      pl.fill.opacity = 0.42 * vis; pl.rim.opacity = vis; pl.frame.opacity = vis; pl.frame.linewidth = 1.25 * dpr
+      pl.fill.opacity = 0.06 * vis; pl.edge.material.opacity = 0.55 * vis; pl.edge.material.linewidth = 1.5 * dpr
       const h = dom.current.head[j]
       if (h) { h.style.opacity = String(vis < 0.6 ? 0 : (vis - 0.6) / 0.4); place(h, colX(j, L), lay.g.H / 2 + 0.3, 0, '-50%', '-100%', 0, compact && j === 0) }
     }
     const bx = bankX(L)
     if (bankRef.current) bankRef.current.position.x = bx
+    bank.edge.material.linewidth = 2 * dpr
     floorRef.current?.position.set((x0Of(L) + exitXOf(L)) / 2, -bank.y - 0.75, 0)
-    place(dom.current.bank, bx, -bank.y - 0.2, 0, '-50%', '0') // под рамкой: заголовки слоёв сверху, подпись границы снизу, не пересекаются
+    place(dom.current.bank, bx, -bank.y - 0.2, 0, '-50%', '0', 0, false, 28) // под рамкой: заголовки слоёв сверху, подпись границы снизу, не пересекаются
     const ex = exitXOf(L)
     lay.exits.forEach((x, k) => {
       exitRefs.current[k]?.position.set(ex, x.y, 0)
       ;(v.exitP[k] ??= new THREE.Vector3()).set(ex, x.y, 0)
     })
 
-    // блик: светлая лаванда один раз проходит по верхнему ребру каждой плоскости
-    if (!reduced) {
-      const edges = [...planes.map((p, j) => ({ x: colX(j, L), y: lay.g.H / 2, z: lay.g.W / 2, on: j === 0 || L - j + 1 > 0.5 })), { x: bx, y: bank.y, z: bank.z, on: true }]
-      edges.forEach((ed, i) => {
-        const k = (now - glintAt.current - i * 110) / GLINT_MS
-        if (k < 0 || k > 1 || !ed.on) return
-        const head = ease(k) * 1.3, fade = Math.sin(Math.PI * k)
-        for (let s = 0; s < 6; s++) {
-          const u0 = Math.min(1, Math.max(0, head - 0.3 + (s * 0.3) / 6)), u1 = Math.min(1, Math.max(0, head - 0.3 + ((s + 1) * 0.3) / 6))
-          if (u1 <= u0) continue
-          v.a.set(ed.x, ed.y, -ed.z + 2 * ed.z * u0); v.b.set(ed.x, ed.y, -ed.z + 2 * ed.z * u1)
-          parts.glint.push(v.a, v.b, v.c.copy(K.head).lerp(K.bg, 1 - fade * ((s + 1) / 6)))
-        }
-      })
-    }
-    parts.glint.commit(dpr)
+    // контактная тень снимается один раз на раскладку: после того как длина цепочек и модели встали на место
+    const sigNow = `${lay.L}|${propsOn.current}|${pr.sc.scheme.key}`
+    if (L === target && sigNow !== shadowSig.current) { shadowSig.current = sigNow; setShadowKey(sigNow) }
 
     // облако честных клиентов: внутри банка, перестраивается только при смене длины
     if (Math.abs(cloudL.current - L) > 0.001) {
@@ -590,24 +581,24 @@ function World({ sc, lay, live, compact, miss, dom }: {
         f = (u, o) => o.lerpVectors(A, B, u)
       }
       if (end > 0) {
-        // в пути фиолет, дошедшее остаётся следом в 35%, ушедшее за границу красное
+        // в пути brand-dot 35% (летящий отрезок плотнее, его ведёт монета), ушедшее за границу коралл 90%
         const trail = mine && back < 1 ? 1 : a.chain === markI ? 0.9 : 0.35 // цепочка перевода клиента заметнее остальных
-        const c = okOut && arrived ? tint(K.leak, kd) : arrived ? tint(K.money, trail * kd) : tint(K.money, kd)
+        const c = okOut && arrived ? tint(K.leak, 0.9 * kd) : arrived ? tint(K.money, trail * kd) : tint(K.money, 0.7 * kd)
         draw(okOut && arrived ? parts.red : parts.gold, f, p * end * (mine ? back : 1), isOut ? 14 : 1, c)
         if (mine && back < 1 && back > 0) putDot(f(p * end * back, v.b), 0.085, K.head)
       }
       if (!arrived && end > 0) {
-        // головка лавандой, за ней два фиолетовых шага
+        // головка brand, за ней две монеты brand-dot
         ;[0, 0.035, 0.07].forEach((d, i) => { const u = p * end - d; if (u >= 0) putDot(f(u, v.b), [0.085, 0.062, 0.045][i], tint(i ? K.money : K.head, kd)) })
       }
       if (okOut && arrived && E && Pp) {
         // граница пройдена: красная черта на плоскости банка, хвост долетает до вывода
         v.sums[exitK!] = (v.sums[exitK!] ?? 0) + e.amount
-        putBar(Pp, tint(K.leak, kd))
+        putBar(Pp, tint(K.leak, 0.9 * kd))
         const q = T_ === Infinity ? 1 : ease((T_ - e.t - LINE_MIN) / TAIL_MIN)
         const P0 = Pp, E0 = E
-        draw(parts.red, (u, o) => o.lerpVectors(P0, E0, u), q, 1, tint(K.leak, kd))
-        if (q < 1) putDot(v.b.lerpVectors(P0, E0, q), 0.08, tint(K.leak, kd))
+        draw(parts.red, (u, o) => o.lerpVectors(P0, E0, u), q, 1, tint(K.leak, 0.9 * kd))
+        if (q < 1) putDot(v.b.lerpVectors(P0, E0, q), 0.08, tint(K.leakDot, kd))
       }
       if (stopped && arrived && !atFrozen && !(mine && back < 1)) {
         const head = isOut ? v.b.copy(A).add(v.e.set(0.35, 0, 0)) : f(0.9, v.b)
@@ -622,17 +613,17 @@ function World({ sc, lay, live, compact, miss, dom }: {
     for (const [id, a] of lay.acc) {
       const saved = a.chain === goneI && a.col === 0 // клиент отменил: его счёт остаётся светлым, деньги при нём
       const P0 = v.accP.get(id)!, kd = saved ? 1 : a.chain === goneI ? Math.max(dim(a.chain), 0.3) : dim(a.chain), ft = v.frozen.get(id)
-      const sz = saved ? 1 + 0.25 * (1 - back) : 1
+      const sz = (saved ? 1 + 0.25 * (1 - back) : 1) * (ft != null && T_ !== Infinity ? pulse(T_ - ft) : 1)
       if (on) {
         // человек стоит на подставке, грудь на уровне точки счёта: пути денег входят в фигуру
         v.p.set(P0.x, P0.y - 0.25 * sz, P0.z); v.s.setScalar(0.5 * sz)
         parts.nodes.setMatrixAt(i, v.m.compose(v.p, v.yaw, v.s))
         parts.bases.setMatrixAt(i, v.m.compose(v.p, v.one, v.s2.setScalar(sz)))
       } else { v.s.setScalar(sz); parts.nodes.setMatrixAt(i, v.m.compose(P0, v.one, v.s)) }
-      parts.nodes.setColorAt(i++, saved ? v.c.copy(K.node).lerp(K.head, 1 - back) : tint(ft != null ? K.stop : K.node, kd))
+      parts.nodes.setColorAt(i++, saved ? v.c.copy(K.node).lerp(K.head, 1 - back) : tint(ft != null ? K.frozen : K.node, kd))
       if (saved && back < 0.45 && goneK.current < 1) { const k = 1 - back / 0.45; putRing(P0, 0.15 + 0.17 * ease(k), tint(K.head, 0.7 * (1 - k))) }
       if (ft != null) {
-        putRing(P0, 0.24, tint(K.stop, kd))
+        putRing(P0, 0.24, tint(K.frozen, kd))
         const age = T_ === Infinity ? Infinity : T_ - ft
         if (age < FLASH_MIN) { const k = age / FLASH_MIN; putRing(P0, 0.24 + 0.5 * ease(k), tint(K.stop, (1 - k) * kd)) }
       }
@@ -644,15 +635,18 @@ function World({ sc, lay, live, compact, miss, dom }: {
     // узлы вывода и суммы у них: только то, что пересекло границу
     lay.exits.forEach((x, k) => {
       const sum = v.sums[x.key] ?? 0
-      // кант подставки краснеет, когда через канал ушли деньги; кучка монет растёт с суммой
+      // кольцо подставки: серое в покое, leak-dot, когда через канал ушли деньги; каждая новая сумма - короткий масштаб 1 -> 1,12 -> 1
       const rm = ringMat.current[k]
-      if (rm) { rm.emissive.copy(sum ? K.leak : K.bg); rm.emissiveIntensity = sum ? 2.2 : 0; rm.color.copy(sum ? K.leak : K.track) }
+      if (rm) rm.color.copy(sum ? K.leakDot : K.ringRest)
+      if (sum !== (v.lastSum[k] ?? 0)) { v.lastSum[k] = sum; v.bumpAt[k] = sum ? now : 0 }
+      const eg = exitRefs.current[k]
+      if (eg) eg.scale.setScalar(reduced || !v.bumpAt[k] ? 1 : pulse(((now - v.bumpAt[k]) / 1000) * SPEED))
       const pile = pileRefs.current[k]
       if (pile) { const ps = sum ? 0.45 + 0.55 * Math.min(1, Math.sqrt(sum / 4e6)) : 0; pile.scale.setScalar(Math.max(1e-3, ps)); pile.visible = ps > 0 }
       place(dom.current.exit[k], ex + (compact ? 0.55 : 0.72), x.y, 0, '0', '-50%', 0, compact) // на телефоне подпись ближе: справа нет места
-      const txt = sum ? kzt(sum) : '0 ₸'
+      const txt = sum ? kzt(sum, live.current.lang) : live.current.lang === 'en' ? '₸0' : '0 ₸'
       const el = dom.current.exitSum[k]
-      if (el && v.lastText[k] !== txt) { v.lastText[k] = txt; el.textContent = txt; el.style.color = sum ? T.risk : T.muted }
+      if (el && v.lastText[k] !== txt) { v.lastText[k] = txt; el.textContent = txt; el.style.color = sum ? T.leak : T.ink3 }
     })
 
     // полосы для клика и наведения на цепочку
@@ -680,7 +674,8 @@ function World({ sc, lay, live, compact, miss, dom }: {
           if (e.kind === 'cashout' && e.status === 'ok' && (T_ === Infinity || e.t + LINE_MIN <= T_)) sOut += e.amount
           if (STOP.has(e.status)) sStop += e.amount
         }
-        const html = `Цепочка ${fi + 1}: выведено <b style="color:${T.risk};font-weight:600">${kzt(sOut)}</b>, остановлено <b style="color:${T.emerald};font-weight:600">${kzt(sStop)}</b>`
+        const lg = live.current.lang ?? 'ru'
+        const html = LANGS[lg].scene.chain(fi + 1, `<b style="color:${T.leak};font-weight:600">${kzt(sOut, lg)}</b>`, `<b style="color:${T.stop};font-weight:600">${kzt(sStop, lg)}</b>`)
         if (v.lastNote !== html) { v.lastNote = html; inn.innerHTML = html }
       }
     }
@@ -690,11 +685,13 @@ function World({ sc, lay, live, compact, miss, dom }: {
     <>
       <Suspense fallback={null}><Studio /></Suspense>
       <Soft><Suspense fallback={null}><Swap parts={parts} on={propsOn} /></Suspense></Soft>
-      <ambientLight intensity={0.8} />
-      <directionalLight position={[-4, 8, 6]} intensity={1.1} color="#F3EEFF" />
+      {/* один свет: белое небо над серой землёй и белый ключ сверху слева */}
+      <hemisphereLight args={['#FFFFFF', '#E7E7EA', 0.9]} />
+      <directionalLight position={[-5, 9, 4]} intensity={1.4} color="#FFFFFF" />
       <group ref={floorRef}>
-        <mesh rotation-x={-Math.PI / 2} renderOrder={-3}><circleGeometry args={[15, 64]} /><meshBasicMaterial map={floorTex} transparent depthWrite={false} /></mesh>
-        <mesh rotation-x={-Math.PI / 2} position-y={0.01} scale={[1.6, 0.7, 1]} renderOrder={-3}><circleGeometry args={[6, 48]} /><meshBasicMaterial map={blobTexture()} transparent opacity={0.55} depthWrite={false} /></mesh>
+        <primitive object={floor} />
+        {/* мягкая контактная тень одной плоскостью; пересчёт только при смене раскладки (key) */}
+        {shadowKey && <ContactShadows key={shadowKey} position-y={0.012} scale={[30, 18]} resolution={512} far={5} opacity={0.28} blur={2.4} frames={1} color="#0E0E11" />}
       </group>
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} enablePan={false} minDistance={5} maxDistance={34}
         maxPolarAngle={Math.PI * 0.64} minPolarAngle={Math.PI * 0.08} />
@@ -703,17 +700,16 @@ function World({ sc, lay, live, compact, miss, dom }: {
       {planes.map((pl) => (
         <group key={pl.j} ref={(g) => { planeRefs.current[pl.j] = g }}>
           <mesh rotation={[0, Math.PI / 2, 0]} material={pl.fill} renderOrder={-1}><planeGeometry args={[lay.g.W, lay.g.H]} /></mesh>
-          <Frame H={pl.H} W={pl.W} t={0.045} mat={pl.rim} />
+          <primitive object={pl.edge} />
         </group>
       ))}
       <group ref={bankRef}>
         <mesh rotation={[0, Math.PI / 2, 0]} material={bank.fill} renderOrder={-1}><planeGeometry args={[bank.z * 2, bank.y * 2]} /></mesh>
-        <Frame H={bank.y * 2} W={bank.z * 2} t={0.085} mat={bank.rim} />
+        <primitive object={bank.edge} />
         <group position={[0, bank.y + 0.04, bank.z - 0.45]} rotation-y={Math.PI / 2}><Soft><Suspense fallback={null}><BankCamera /></Suspense></Soft></group>
       </group>
       <primitive object={parts.bases} />
       <primitive object={parts.tracks.obj} />
-      <primitive object={parts.glint.obj} />
       <primitive object={parts.gold.obj} />
       <primitive object={parts.red.obj} />
       <primitive object={parts.nodes} />
@@ -734,7 +730,7 @@ function World({ sc, lay, live, compact, miss, dom }: {
       ))}
 
       {lay.g.cells.map((_, ci) => (
-        <mesh key={ci} ref={(m) => { hitRefs.current[ci] = m }}
+        <mesh key={ci} ref={(m) => { hitRefs.current[ci] = m }} visible={false}
           onClick={(e) => { e.stopPropagation(); pick(ci) }}
           onPointerOver={(e) => { e.stopPropagation(); hover.current = ci; document.body.style.cursor = 'pointer' }}
           onPointerOut={() => { if (hover.current === ci) hover.current = null; document.body.style.cursor = '' }}>
@@ -746,16 +742,33 @@ function World({ sc, lay, live, compact, miss, dom }: {
   )
 }
 
-// рама слоя: четыре металлических бруска по периметру листа
-function Frame({ H, W, t, mat }: { H: number; W: number; t: number; mat: THREE.Material }) {
-  return (
-    <group>
-      <mesh material={mat} position={[0, H / 2, 0]}><boxGeometry args={[t, t, W + t]} /></mesh>
-      <mesh material={mat} position={[0, -H / 2, 0]}><boxGeometry args={[t, t, W + t]} /></mesh>
-      <mesh material={mat} position={[0, 0, W / 2]}><boxGeometry args={[t, H - t, t]} /></mesh>
-      <mesh material={mat} position={[0, 0, -W / 2]}><boxGeometry args={[t, H - t, t]} /></mesh>
-    </group>
-  )
+// кромка панели: прямоугольник толстой линией в пикселях (LineMaterial), прозрачность задаётся каждый кадр
+function rimLine(H: number, W: number, width: number, opacity: number) {
+  const y = H / 2, z = W / 2
+  const g = new LineSegmentsGeometry()
+  g.setPositions([0, y, -z, 0, y, z, 0, y, z, 0, -y, z, 0, -y, z, 0, -y, -z, 0, -y, -z, 0, y, -z])
+  const m = new LineMaterial({ color: T.brandDot, linewidth: width, transparent: true, opacity, depthWrite: false, toneMapped: false })
+  const o = new LineSegments2(g, m); o.frustumCulled = false
+  return o
+}
+
+// пол из точек: шаг 0,5, круглая точка, цвет к краям уходит в белый фон плиты; одна геометрия Points
+function floorDots() {
+  const step = 0.5, nx = 61, nz = 37, pos: number[] = [], colr: number[] = []
+  const c0 = new THREE.Color(T.floor), c1 = new THREE.Color(T.bg), c = new THREE.Color()
+  for (let i = 0; i < nx; i++) for (let k = 0; k < nz; k++) {
+    const x = (i - (nx - 1) / 2) * step, z = (k - (nz - 1) / 2) * step
+    const r = Math.hypot(x / 15, z / 9)
+    if (r > 1) continue
+    pos.push(x, 0, z); c.copy(c0).lerp(c1, Math.pow(r, 1.6)); colr.push(c.r, c.g, c.b)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3))
+  const dot = document.createElement('canvas'); dot.width = dot.height = 32
+  const x = dot.getContext('2d')!; x.fillStyle = '#fff'; x.beginPath(); x.arc(16, 16, 14, 0, Math.PI * 2); x.fill()
+  const m = new THREE.PointsMaterial({ size: 0.07, vertexColors: true, map: new THREE.CanvasTexture(dot), alphaTest: 0.5, depthWrite: false, toneMapped: false })
+  const o = new THREE.Points(g, m); o.renderOrder = -3; o.frustumCulled = false
+  return o
 }
 
 function Pile() { return <primitive object={usePile()} /> }

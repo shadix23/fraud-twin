@@ -430,10 +430,12 @@ def client_payload(world: World, scheme: str, rules: Rules = DEFAULT_RULES,
     }
 
 
-def hole_overrides(world: World, scheme: str, rules: Rules = DEFAULT_RULES) -> dict:
-    from .redteam import search
+def hole_overrides(world: World, scheme: str, rules: Rules = DEFAULT_RULES, strong: bool = False) -> dict:
+    """Дыра для демо клиента. strong=True (экспорт готовых прогонов): большой бюджет поиска;
+    живой API считает короткий поиск, как /redteam."""
+    from .redteam import search_live, search_strong
     world.clear_attack()
-    res = search(world, scheme, rules)
+    res = (search_strong if strong else search_live)(world, scheme, rules)
     world.clear_attack()
     return dict(res["overrides"])
 
@@ -514,14 +516,17 @@ def main() -> None:
     c = normalize(None)
     world = generate_world(calib_profile(c))
     rules = calib_rules(c)
-    ov = hole_overrides(world, "student_crypto", rules)
+    ov = hole_overrides(world, "student_crypto", rules, strong=True)
     data = demo_payload(world, rules, overrides=ov)
     data["robust"] = robust_stats(world, rules, "student_crypto", ov)
-    os.makedirs(args.out, exist_ok=True)
-    path = os.path.join(args.out, "client_check.json")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-    print(path)
+    from .i18n import LANGS, translate
+    # ru/, en/ и старый путь <out>/client_check.json (копия ru, пока фронт не переехал)
+    for d, lang in [(os.path.join(args.out, lg), lg) for lg in LANGS] + [(args.out, "ru")]:
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, "client_check.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(translate(data, lang), f, ensure_ascii=False, separators=(",", ":"))
+        print(path)
     print(json.dumps(data["robust"], ensure_ascii=False, indent=1))
 
 

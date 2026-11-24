@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { motion } from 'motion/react'
-import { ArrowRightLeft, CalendarDays, Check, Link2, Lock, PhoneCall, Send, ShieldAlert, Smartphone, Sparkles, UserPlus, Users, X, type LucideIcon } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ArrowRightLeft, CalendarDays, Check, Link2, Lock, PhoneCall, Send, ShieldAlert, Smartphone, UserPlus, Users, type LucideIcon } from 'lucide-react'
 import type { ClientButton, ClientCase, ClientCheck, ClientLevel } from './data'
+import { useLang, type Dict } from './i18n'
 import { plainKzt } from './format'
+import { QrCode, clientUrl, PUBLIC_URL } from './QrCode'
 
-// Шаг «Клиент» (v14): одна карточка-предупреждение поверх сцены, без корпуса телефона.
-// До отправки модель смотрит на карту получателя; тексты и причины берём из ответа как есть.
+// Шаг «Клиент» (бриф v20, F5): экран клиента как простая белая плита 390 px, без рамки телефона, выреза и рук.
+// Подписан как макет. Три получателя сегментом: карта дропа (предупреждение), новая карта (уходит молча, граница метода), знакомый.
+// Тексты экрана, причины и суммы приходят из симулятора как есть; подписи интерфейса из словаря.
 
 type Stage = 'checking' | 'result' | 'after'
 export interface PhoneState { level: ClientLevel | null; after: string | null }
@@ -14,35 +16,39 @@ const ICON: Record<string, LucideIcon> = {
   young: CalendarDays, phone: Smartphone, strangers: Users, transit: ArrowRightLeft,
   chain: Link2, new_recipient: UserPlus, blocked: Lock,
 }
-const FALLBACK: ClientCase = {
-  transfer: { amount: 579000, time: '11:24', new_recipient: true, recipient: { name: 'Получатель', phone_mask: '+7 7** *** ** **', card_mask: '**** ****' } },
-  risk: { score: 0, level: 'low', basis: 'no_history' }, reasons: [],
-  screen: { title: 'Перевод отправлен', subtitle: '', buttons: [{ id: 'done', label: 'Готово', primary: true }] },
-}
-const DEFAULT_BUTTONS: Record<ClientLevel, ClientButton[]> = {
-  high: [{ id: 'cancel', label: 'Отменить перевод', primary: true }, { id: 'call', label: 'Позвонить в банк' }, { id: 'send_anyway', label: 'Всё равно отправить', quiet: true }],
-  medium: [{ id: 'send', label: 'Продолжить перевод', primary: true }, { id: 'cancel', label: 'Отменить' }],
-  low: [{ id: 'done', label: 'Готово', primary: true }],
-  blocked: [{ id: 'call', label: 'Позвонить в банк', primary: true }, { id: 'done', label: 'Закрыть' }],
-}
+const ORDER = ['high', 'fresh_card', 'honest']
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export default function ClientCard({ data, auto, falsePer10k, onState, onClose }: {
-  data: ClientCheck | null | undefined // undefined - ещё грузим
-  auto?: boolean // автопоказ: клиент сам отменяет перевод через несколько секунд
-  falsePer10k?: number
+function defaults(level: ClientLevel, t: Dict): ClientButton[] {
+  const c = t.client
+  if (level === 'high') return [{ id: 'cancel', label: c.cancel, primary: true }, { id: 'call', label: c.call }, { id: 'send_anyway', label: c.anyway, quiet: true }]
+  if (level === 'medium') return [{ id: 'send', label: c.proceed, primary: true }, { id: 'cancel', label: c.cancel }]
+  if (level === 'blocked') return [{ id: 'call', label: c.call, primary: true }, { id: 'done', label: c.close }]
+  return [{ id: 'done', label: c.done, primary: true }]
+}
+
+/** Какие получатели есть в ответе, в постоянном порядке */
+export const clientCases = (data: ClientCheck | null | undefined) =>
+  data ? [...ORDER.filter((k) => data.cases[k]), ...Object.keys(data.cases).filter((k) => !ORDER.includes(k) && data.cases[k])] : []
+
+export default function ClientScreen({ data, pick, onPick, auto, onState, onClose }: {
+  data: ClientCheck | null | undefined // undefined - ещё грузим, null - для этой схемы нет
+  pick: string | null                  // получатель; null - демо-случай из ответа
+  onPick: (k: string) => void
+  auto?: boolean                       // автопоказ: клиент сам отменяет перевод через несколько секунд
   onState: (s: PhoneState) => void
-  onClose: () => void // назад к шагу «Защита»
+  onClose: () => void                  // назад к шагу «Защита»
 }) {
+  const { t, lang } = useLang()
   const [stage, setStage] = useState<Stage>(() => (reduced() ? 'result' : 'checking'))
   const [after, setAfter] = useState<string | null>(null)
   const [waited, setWaited] = useState(false)
-  const c: ClientCase = (data && data.cases[data.demo]) || FALLBACK
-  const level = c.risk.level
-  const tr = c.transfer
+  const key = pick && data?.cases[pick] ? pick : data?.demo ?? null
+  const c: ClientCase | null = (data && key && data.cases[key]) || null
+  const level: ClientLevel = c?.risk.level ?? 'low'
   const ready = data !== undefined || waited
   const primary = useRef<HTMLButtonElement>(null)
-  const root = useRef<HTMLDivElement>(null)
+  const cases = clientCases(data)
 
   // короткая проверка получателя: до 1 с ждём ответ API, затем решение
   useEffect(() => {
@@ -58,128 +64,244 @@ export default function ClientCard({ data, auto, falsePer10k, onState, onClose }
   useEffect(() => {
     if (stage === 'result' && ready) onState({ level, after: null })
   }, [stage, ready, level, onState])
-  useEffect(() => { if (stage !== 'checking') primary.current?.focus({ preventScroll: true }) }, [stage])
-  useEffect(() => { root.current?.focus({ preventScroll: true }) }, [])
+  useEffect(() => { if (stage === 'result') primary.current?.focus({ preventScroll: true }) }, [stage])
 
+  const restart = () => { setAfter(null); setWaited(false); setStage(reduced() ? 'result' : 'checking'); onState({ level: null, after: null }) }
   const press = (b: ClientButton) => {
-    if (b.id === 'done') { onClose(); return }
+    if (b.id === 'done') { restart(); return }
     setAfter(b.id); setStage('after'); onState({ level, after: b.id })
   }
+  // получателя можно сменить и с плиты исходов рядом: экран начинает проверку заново при любой смене
+  const choose = (k: string) => { if (k !== key) onPick(k) }
+  const prevKey = useRef(key)
+  useEffect(() => {
+    if (prevKey.current === key) return
+    const was = prevKey.current
+    prevKey.current = key
+    if (was != null) restart()
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
   // автопоказ: даём прочитать причины и нажимаем главную кнопку, как это сделал бы клиент
   const pressRef = useRef(press)
   pressRef.current = press
   useEffect(() => {
-    if (!auto || stage !== 'result' || !ready || level === 'low') return
-    const list = c.screen.buttons?.length ? c.screen.buttons : DEFAULT_BUTTONS[level]
+    if (!auto || stage !== 'result' || !ready || !c || level === 'low') return
+    const list = c.screen.buttons?.length ? c.screen.buttons : defaults(level, t)
     const b = list.find((x) => x.id === 'cancel') ?? list.find((x) => x.primary)
     if (!b) return
     const id = setTimeout(() => pressRef.current(b), reduced() ? 1500 : 4200)
     return () => clearTimeout(id)
-  }, [auto, stage, ready, level, c])
-  const restart = () => { setAfter(null); setWaited(false); setStage(reduced() ? 'result' : 'checking'); onState({ level: null, after: null }) }
+  }, [auto, stage, ready, level, c, t])
 
   const showResult = (stage === 'result' && ready) || stage === 'after'
+  const digits = c?.transfer.recipient.card_mask.match(/(\d{4})\s*$/)?.[1] ?? ''
 
   return (
-    <div ref={root} tabIndex={-1} role="group" aria-label="Что видит клиент: проверка перевода"
+    <section data-client role="group" aria-label={t.client.group} tabIndex={-1}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}
-      className="pointer-events-auto fixed inset-x-0 bottom-(--bar-h) top-0 z-40 flex flex-col items-center overflow-y-auto bg-scene-0 px-4 py-4 outline-none phone-short:py-3 lg:justify-center
-        lg:pointer-events-none lg:absolute lg:inset-auto lg:bottom-0 lg:right-6 lg:top-[64px] lg:z-20 lg:items-end lg:overflow-visible lg:bg-transparent lg:p-0">
-      <p className="mb-2.5 mt-auto phone-short:mb-2 flex items-center gap-1.5 text-[14px] leading-tight text-mist lg:hidden" data-synthetic><span className="h-1.5 w-1.5 rounded-full bg-stop-scene shadow-[0_0_8px_#1fcfae]" aria-hidden />Экран клиента при переводе</p>
-      <motion.div data-cover="right" className="client-card phone pointer-events-auto relative w-full max-w-[392px] rounded-[26px] px-5 pb-4 pt-4 phone-short:pb-3 phone-short:pt-3.5 text-ink lg:max-w-[432px] lg:px-6 lg:pb-5 lg:pt-5 tight:lg:max-w-[404px] tight:lg:px-5 tight:lg:pb-4 tight:lg:pt-4"
-        initial={reduced() ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
-        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}>
-        <div className="flex items-center gap-3 text-[15px] text-ink-3">
-          <span className="min-w-0 flex-1 truncate">{tr.recipient.name}, карта {tr.recipient.card_mask.replace('**** ', '')}</span>
-          {!showResult && <span className="shrink-0 font-semibold text-ink">{plainKzt(tr.amount)}</span>}
-          <button className="-mr-2 grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-3 hover:bg-white/10 hover:text-ink lg:hidden" onClick={onClose} aria-label="Назад к защите" aria-keyshortcuts="K Escape">
-            <X size={18} strokeWidth={1.75} />
-          </button>
-        </div>
-        {!showResult && (
-          <p className="flex items-center gap-2.5 py-6 text-[17px] text-ink-2" aria-live="polite"><span className="client-spin" aria-hidden />Проверяем получателя...</p>
+      className="plate flex min-h-0 shrink-0 flex-col outline-none lg:w-[390px] lg:overflow-y-auto">
+      <div className="px-5 pt-5 lg:px-6 short:pt-4">
+        <p className="t-caps text-ink-3">{t.client.mock}</p>
+        {cases.length > 1 && (
+          <div className="mt-3 short:mt-2">
+            <div className="seg seg-sm w-full !bg-surface-2 !shadow-none" role="group" aria-label={t.client.recipient}>
+              {cases.map((k) => (
+                <button key={k} type="button" className="seg-item flex-1 !px-2" aria-pressed={k === key} onClick={() => choose(k)}>
+                  {k === key && <span className="seg-on" aria-hidden />}<span className="relative">{t.client.cases[k] ?? k}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
-        {showResult && stage === 'result' && (level === 'low'
-          ? <Final icon={<Check size={22} strokeWidth={2.25} />} tone="neutral" title={c.screen.title || 'Перевод отправлен'}>
-              <button ref={primary} className="client-cta" onClick={onClose}>{c.screen.buttons?.[0]?.label ?? 'Готово'}</button>
-            </Final>
-          : <Warning c={c} level={level} primary={primary} onPress={press} />)}
-        {stage === 'after' && after && <After id={after} text={data?.after[after]} onRestart={restart} />}
-      </motion.div>
-      {falsePer10k != null && <p className="mt-3 text-center text-[15px] leading-snug text-ink-2 phone-short:mt-2 phone-short:text-[14px] lg:hidden">Ложных предупреждений: около {Math.round(falsePer10k)} на 10 тыс. честных переводов</p>}
-      <span className="mb-auto lg:hidden" aria-hidden />
+      </div>
+
+      <div className="flex-1 px-5 pb-5 pt-4 lg:px-6 short:pb-4 short:pt-3" aria-live="polite">
+        {data === null || (data && !c) ? (
+          <p className="text-[16px] leading-snug text-ink-2">{t.client.noData}</p>
+        ) : !c || !showResult ? (
+          <>
+            {c && <Head c={c} digits={digits} amount />}
+            <p className="flex items-center gap-2.5 py-6 text-[16px] text-ink-2"><span className="client-spin" aria-hidden />{t.client.checking}</p>
+          </>
+        ) : stage === 'after' && after ? (
+          <After id={after} text={data?.after[after]} onRestart={restart} />
+        ) : level === 'low' ? (
+          <div className="client-swap" role="status">
+            <Head c={c} digits={digits} />
+            <div className="mt-4 flex items-center gap-2.5 text-ink-3">
+              <Check size={22} strokeWidth={2.25} aria-hidden />
+              <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">{c.screen.title || t.client.sent}</h2>
+            </div>
+            <div className="mt-2 text-[34px] font-semibold leading-none tracking-[-0.035em] tabular-nums">{plainKzt(c.transfer.amount, lang)}</div>
+            <button ref={primary} className="client-cta mt-6 w-full !flex-none" onClick={() => press({ id: 'done', label: '' })}>{c.screen.buttons?.[0]?.label ?? t.client.done}</button>
+          </div>
+        ) : (
+          <Warning c={c} level={level} digits={digits} primary={primary} onPress={press} />
+        )}
+      </div>
+    </section>
+  )
+}
+
+function Head({ c, digits, amount }: { c: ClientCase; digits: string; amount?: boolean }) {
+  const { t, lang } = useLang()
+  return (
+    <div className="flex items-center gap-3 text-[15px] text-ink-3">
+      <span className="min-w-0 flex-1 truncate">{t.client.card(c.transfer.recipient.name, digits)}</span>
+      {amount && <span className="shrink-0 font-semibold tabular-nums text-ink">{plainKzt(c.transfer.amount, lang)}</span>}
     </div>
   )
 }
 
-function Warning({ c, level, primary, onPress }: { c: ClientCase; level: ClientLevel; primary: React.RefObject<HTMLButtonElement | null>; onPress: (b: ClientButton) => void }) {
-  const buttons = c.screen.buttons?.length ? c.screen.buttons : DEFAULT_BUTTONS[level]
+function Warning({ c, level, digits, primary, onPress }: { c: ClientCase; level: ClientLevel; digits: string; primary: React.RefObject<HTMLButtonElement | null>; onPress: (b: ClientButton) => void }) {
+  const { t, lang } = useLang()
+  const buttons = c.screen.buttons?.length ? c.screen.buttons : defaults(level, t)
   const firstPrimary = buttons.findIndex((b) => b.primary)
   const main = buttons.filter((b) => !b.quiet)
   const quiet = buttons.filter((b) => b.quiet)
   const risk = Math.round(Math.min(1, Math.max(0, c.risk.score)) * 100)
   return (
-    <div className="client-swap" role="group" aria-labelledby="client-title">
-      <div className="mt-3 flex items-center gap-3 phone-short:mt-2">
+    <div className="client-swap" aria-labelledby="client-title">
+      <Head c={c} digits={digits} />
+      <div className="mt-3 flex items-center gap-3 short:mt-2">
         <span className="alert-chip shrink-0" aria-hidden>{level === 'blocked' ? <Lock size={20} strokeWidth={2} /> : <ShieldAlert size={20} strokeWidth={2} />}</span>
-        <h2 id="client-title" className="text-[22px] font-normal leading-tight tracking-[-0.02em] lg:text-[24px] tight:lg:text-[22px]">{c.screen.title}</h2>
+        <h2 id="client-title" className="text-[22px] font-semibold leading-tight tracking-[-0.02em]">{c.screen.title}</h2>
       </div>
-      <div className="num-prop mt-4 text-[40px] phone-short:mt-3 phone-short:text-[36px] font-light leading-none tracking-[-0.03em] lg:text-[48px] tight:lg:text-[40px]">{plainKzt(c.transfer.amount)}</div>
+      <div className="mt-4 flex items-end justify-between gap-3 short:mt-3">
+        <span className="text-[40px] font-semibold leading-none tracking-[-0.035em] tabular-nums short:text-[34px]">{plainKzt(c.transfer.amount, lang)}</span>
+        {risk > 0 && (
+          <span className="shrink-0 text-right leading-tight" role="img" aria-label={t.client.riskAria(risk)}>
+            <span className="t-caps block text-ink-3">{t.client.risk}</span>
+            <span className="text-[20px] font-semibold tabular-nums text-leak">{risk}%</span>
+          </span>
+        )}
+      </div>
       {c.reasons.length > 0 && (
-        <ul className="mt-4 space-y-2 phone-short:mt-3">
+        <ul className="mt-4 space-y-2 short:mt-3 short:space-y-1.5">
           {c.reasons.slice(0, 3).map((r, i) => {
             const I = ICON[r.key] ?? ShieldAlert
             return (
               <li key={r.key + i} className="client-reason flex gap-2.5" style={{ animationDelay: `${80 + i * 60}ms` }}>
-                <I size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-gold-ink" aria-hidden />
-                <span className="text-[16px] leading-snug text-ink-2 phone-short:text-[15px]">{r.text}</span>
+                <I size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-ink-3" aria-hidden />
+                <span className="text-[16px] leading-snug text-ink-2">{r.text}</span>
               </li>
             )
           })}
         </ul>
       )}
-      {risk > 0 && (
-        <div className="mt-5 phone-short:mt-4" role="img" aria-label={`Риск перевода ${risk} из 100`}>
-          <div className="flex items-baseline justify-between text-[15px]"><span className="text-ink-2">Риск</span><span className="text-[18px] font-medium text-leak">{risk}%</span></div>
-          <div className="risk-track mt-2"><span className="risk-dot" style={{ left: `${Math.max(3, Math.min(97, risk))}%` }} /></div>
-        </div>
-      )}
-      <div className="mt-5 rounded-[20px] bg-white/[0.035] p-3 phone-short:mt-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-        <div className="flex items-center gap-2 px-1 text-[15px] text-ink-2"><Sparkles size={16} strokeWidth={1.75} className="text-stop" aria-hidden />Рекомендации ИИ</div>
-        <div className="client-row mt-2.5 flex gap-2 max-sm:flex-col">
-          {main.map((b) => (
-            <button key={b.id} ref={buttons.indexOf(b) === firstPrimary ? primary : undefined} className={b.primary ? 'client-cta' : 'client-sec'} onClick={() => onPress(b)}>
-              {b.label}
-            </button>
-          ))}
-        </div>
+      <p className="t-caps mt-5 text-ink-3 short:mt-4">{t.client.advice}</p>
+      <div className="client-col mt-2 flex flex-col gap-2">
+        {main.map((b) => (
+          <button key={b.id} ref={buttons.indexOf(b) === firstPrimary ? primary : undefined} className={b.primary ? 'client-cta' : 'client-sec'} onClick={() => onPress(b)}>
+            {b.label}
+          </button>
+        ))}
       </div>
-      {quiet.map((b) => <button key={b.id} className="client-link mx-auto mt-2 block phone-short:mt-1" onClick={() => onPress(b)}>{b.label}</button>)}
+      {quiet.map((b) => <button key={b.id} className="client-link mx-auto mt-2 block" onClick={() => onPress(b)}>{b.label}</button>)}
     </div>
   )
 }
 
 function After({ id, text, onRestart }: { id: string; text?: string; onRestart: () => void }) {
-  const full = text || (id === 'cancel' ? 'Перевод отменён.' : 'Перевод отправлен.')
+  const { t } = useLang()
+  const full = text || (id === 'cancel' ? `${t.client.cancelled}.` : `${t.client.sent}.`)
   const cut = full.indexOf('. ')
   const title = cut > 0 ? full.slice(0, cut) : full.replace(/\.$/, '')
   const icon = id === 'cancel' ? <Check size={22} strokeWidth={2.25} /> : id === 'call' ? <PhoneCall size={21} strokeWidth={2} /> : <Send size={20} strokeWidth={2} />
   return (
-    <Final icon={icon} tone={id === 'cancel' ? 'stop' : 'neutral'} title={title}>
-      {cut > 0 && <p className="text-[16px] leading-snug text-ink-2">{full.slice(cut + 2)}</p>}
-      <button className="client-link" onClick={onRestart}>Показать ещё раз</button>
-    </Final>
+    <div className="client-swap" role="status">
+      <div className={`flex items-center gap-2.5 ${id === 'cancel' ? 'text-stop' : 'text-ink-3'}`}>
+        <span className="shrink-0" aria-hidden>{icon}</span>
+        <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">{title}</h2>
+      </div>
+      {cut > 0 && <p className="mt-3 text-[16px] leading-snug text-ink-2">{full.slice(cut + 2)}</p>}
+      <button className="client-link mt-4" onClick={onRestart}>{t.client.again}</button>
+    </div>
   )
 }
 
-function Final({ icon, tone, title, children }: { icon: React.ReactNode; tone: 'stop' | 'neutral'; title: string; children: React.ReactNode }) {
+/** Рабочая плита шага «Клиент»: граница метода (первые жертвы на новой карте) и чем предупреждение отличается от задержки.
+ *  Числа те же, что на слайде и в отчёте: robust по 6 мирам, иначе один прогон */
+export function ClientFacts({ check }: { check: { data: ClientCheck | null; robust: ClientCheck['robust'] | null } | undefined }) {
+  const { t, lang } = useLang()
+  const r = check?.robust
+  const fresh = !!check?.data?.cases.fresh_card
+  const pct = (v: number) => (lang === 'en' ? v.toFixed(1) : v.toFixed(1).replace('.', ','))
   return (
-    <div className="client-swap" role="status">
-      <div className={`mt-3 flex items-center gap-2.5 ${tone === 'stop' ? 'text-stop' : 'text-ink-3'}`}>
-        <span className="shrink-0" aria-hidden>{icon}</span>
-        <h2 className="text-[22px] font-normal leading-tight tracking-[-0.02em] text-ink">{title}</h2>
+    <section data-client-price className="space-y-3 short:space-y-2">
+      <h2 className="t-caps text-ink-3">{t.client.limitCaps}</h2>
+      {r && (
+        <div>
+          <div className="flex items-baseline gap-3">
+            <span className="text-[44px] font-semibold leading-none tracking-[-0.035em] tabular-nums text-leak short:text-[34px]" data-first-silent>{pct(r.victims.first_on_card_silent_pct)}%</span>
+          </div>
+          <p className="mt-2 text-[16px] font-medium leading-snug text-ink">{t.client.firstSilent}</p>
+          <p className="mt-1 text-[16px] leading-snug text-ink-2" data-first-victim>{t.client.firstText}</p>
+        </div>
+      )}
+      {fresh && <p className="text-[16px] leading-snug text-ink-2">{t.client.tryFresh}</p>}
+      <p className="text-[16px] leading-snug text-ink-2" data-metric-note>{t.client.warnNote}</p>
+      <a href="#client" className="ctl ctl-quiet !h-11 w-full !font-medium lg:hidden" data-open-phone>{t.phone.open}</a>
+    </section>
+  )
+}
+
+/** v20-fix: на широком экране вместо сцены рядом с экраном клиента одна спокойная плита: три получателя и их исходы.
+ *  Строка выбирает получателя на экране клиента. Задача кейса - внизу плиты, как на сцене */
+export function ClientOutcomes({ data, pick, onPick, after, footer }: {
+  data: ClientCheck | null | undefined; pick: string | null; onPick: (k: string) => void; after: string | null; footer?: ReactNode
+}) {
+  const { t } = useLang()
+  const cases = clientCases(data)
+  const key = pick && data?.cases[pick] ? pick : data?.demo ?? null
+  return (
+    <section className="plate relative hidden min-h-0 flex-1 flex-col lg:flex" aria-label={t.client.outcomes.title} data-client-outcomes>
+      <div className="min-h-0 flex-1 px-6 pb-24 pt-5 lg:overflow-y-auto short:pb-20 short:pt-4">
+        <h2 className="t-caps text-ink-3">{t.client.outcomes.title}</h2>
+        <ul className="mt-3 space-y-2 short:mt-2 short:space-y-1.5">
+          {cases.map((k) => {
+            const c = data!.cases[k]!
+            const risk = Math.round(Math.min(1, Math.max(0, c.risk.score)) * 100)
+            const on = k === key
+            const high = c.risk.level === 'high' || c.risk.level === 'blocked'
+            return (
+              <li key={k}>
+                <button type="button" aria-pressed={on} onClick={() => onPick(k)} data-outcome={k}
+                  className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 rounded-2xl px-4 py-3.5 text-left transition-colors duration-150 short:py-3 ${on ? 'bg-surface-2 shadow-[inset_0_0_0_1.5px_var(--color-ink)]' : 'hover:bg-surface-2/70'}`}>
+                  <span className="min-w-0">
+                    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                      <span className="text-[17px] font-semibold leading-tight tracking-[-0.01em] text-ink">{t.client.cases[k] ?? k}</span>
+                      {on && <span className="t-caps text-ink-3">{after ? (after === 'cancel' ? t.client.cancelled : t.client.sent) : t.client.outcomes.now}</span>}
+                    </span>
+                    <span className="mt-1 block text-[15px] leading-snug text-ink-2">{t.client.outcomes.text[k] ?? c.screen.title}</span>
+                  </span>
+                  <span className="text-right leading-tight" role="img" aria-label={t.client.riskAria(risk)}>
+                    <span className="t-caps block text-ink-3">{t.client.risk}</span>
+                    <span className={`text-[20px] font-semibold tabular-nums ${high ? 'text-leak' : 'text-ink-2'}`}>{risk}%</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <QrBlock />
       </div>
-      <div className="mt-5 flex flex-col items-stretch gap-2 [&>.client-cta]:flex-none [&>.client-link]:self-center">{children}</div>
+      {footer}
+    </section>
+  )
+}
+
+/** F8: QR на публичный #client рядом с исходами. Телефон жюри открывает 20 секунд в роли клиента, сцену при этом не грузит */
+function QrBlock() {
+  const { t, lang } = useLang()
+  const url = clientUrl(lang)
+  return (
+    <div className="mt-5 flex items-center gap-5 border-t border-line/70 pt-5 short:mt-3 short:gap-4 short:pt-3" data-qr-block>
+      <QrCode text={url} label={t.phone.qrAria(url)} className="size-[212px] shrink-0 shadow-[inset_0_0_0_1px_var(--color-line)] short:size-[132px]" />
+      <div className="min-w-0">
+        <h3 className="text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ink short:text-[18px]">{t.phone.qrTitle}</h3>
+        <p className="mt-1.5 text-[15px] leading-snug text-ink-2">{t.phone.qrText}</p>
+        <p className="mt-2 truncate text-[14px] font-medium text-ink-3">{PUBLIC_URL.replace(/^https?:\/\//, '')}</p>
+      </div>
     </div>
   )
 }

@@ -81,3 +81,11 @@ WHATIF_META: List[dict] = [
 ]
 
 DEFAULT_RULES = Rules()
+
+
+# Границы значений для редактора правил: фронт берёт их из rule_meta, API проверяет по ним же.
+_LIMITS = {'amount_limit': ('amount_limit_on', 50000, 5000000, 50000), 'daily_limit': ('daily_limit_on', 100000, 20000000, 100000), 'velocity_n': ('velocity_on', 2, 30, 1), 'new_recipient_amount': ('new_recipient_on', 10000, 2000000, 10000), 'account_age_days': ('account_age_on', 1, 90, 1), 'shared_phone_n': ('shared_phone_on', 2, 10, 1)}
+for _m in RULE_META:
+    _on, _lo, _hi, _st = _LIMITS[_m["param"]]
+    _m.update({"on_param": _on, "min": _lo, "max": _hi, "step": _st,
+               "default": getattr(DEFAULT_RULES, _m["param"])})

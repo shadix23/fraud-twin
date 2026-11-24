@@ -14,7 +14,7 @@ from dataclasses import asdict
 from typing import Dict, List, Optional, Tuple
 
 from .engine import honest_cost, run_attack
-from .redteam import search
+from .redteam import search_live, search_strong, STRONG_MODEL
 from .rules import DEFAULT_RULES, Rules
 from .schemes import PRESETS, plan_attack, preset
 from .world import BankProfile, World
@@ -141,15 +141,16 @@ def _pct(a: float, b: float) -> float:
 
 
 def build_report(world: World, rules: Rules, name: str, calib: dict,
-                 redteam: Optional[Dict[str, dict]] = None) -> dict:
+                 redteam: Optional[Dict[str, dict]] = None, fast: bool = False) -> dict:
     """Отчёт по всем схемам. redteam: готовые результаты search по ключу схемы."""
     schemes = []
     for key, p in PRESETS.items():
-        rt = (redteam or {}).get(key) or search(world, key, rules)
+        rt = (redteam or {}).get(key) or (search_live if fast else search_strong)(world, key, rules)
         lib = _variants(world, rules, preset(key))
         hole = _variants(world, rules, preset(key, **rt["overrides"]))
         # гонка вооружений: ИИ-мошенник ищет заново, уже против модели на графе
-        rm = search(world, key, rules.with_(model_on=True))
+        rm = (search_live(world, key, rules.with_(model_on=True)) if fast else
+              search_strong(world, key, rules.with_(model_on=True), **STRONG_MODEL))
         schemes.append({
             "rematch": {"withdrawn": rm["best"]["metrics"]["withdrawn_kzt"],
                         "attempted": rm["best"]["metrics"]["attempted_kzt"],
@@ -158,6 +159,8 @@ def build_report(world: World, rules: Rules, name: str, calib: dict,
             "lib": lib, "hole": hole,
             "diff": rt["best"]["diff"], "silent_rules": rt["best"]["silent_rules"],
             "hints": rt["best"]["hints"], "evals": rt["evals"],
+            "lower_bound": True, "restart_pct": rt["search"]["restart_pct"],
+            "rematch_restart_pct": rm["search"]["restart_pct"],
             "recheck_withdrawn": rt["best"]["recheck_withdrawn_kzt"],
         })
 
@@ -174,6 +177,8 @@ def build_report(world: World, rules: Rules, name: str, calib: dict,
 
     rematch_w = sum(s["rematch"]["withdrawn"] for s in schemes)
     attempted = sum(s["lib"]["base"]["attempted"] for s in schemes)
+    hole_attempted = sum(s["hole"]["base"]["attempted"] for s in schemes)
+    rematch_attempted = sum(s["rematch"]["attempted"] for s in schemes)
     base = measures[0]
     holes = [s for s in schemes if s["hole"]["base"]["withdrawn"] > s["lib"]["base"]["withdrawn"] * 1.05]
     summary = {
@@ -183,9 +188,13 @@ def build_report(world: World, rules: Rules, name: str, calib: dict,
         "lib_withdrawn": base["lib_withdrawn"],
         "hole_withdrawn": base["hole_withdrawn"],
         "lib_pct": _pct(base["lib_withdrawn"], attempted),
-        "hole_pct": _pct(base["hole_withdrawn"], attempted),
+        # у найденной схемы свой объём попыток (дробление меняет число переводов): доли считаем к нему
+        "hole_attempted": hole_attempted,
+        "hole_pct": _pct(base["hole_withdrawn"], hole_attempted),
         "rematch_withdrawn": rematch_w,
-        "rematch_pct": _pct(rematch_w, attempted),
+        "rematch_attempted": rematch_attempted,
+        "rematch_pct": _pct(rematch_w, rematch_attempted),
+        "lower_bound": True,   # найденное ИИ - нижняя оценка: на экране «не меньше»
     }
     return {
         "synthetic": True,

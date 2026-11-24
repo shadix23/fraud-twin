@@ -1,0 +1,672 @@
+{
+ "carousel": [
+  {
+   "cashout": "atm",
+   "chunk_gap_min": 1.4,
+   "chunk_max": 1200000,
+   "drop_age_days": 75,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 285000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 1.9,
+   "chunk_max": 314000,
+   "drop_age_days": 51,
+   "drops_per_phone": 1,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 11.0,
+   "victim_chunk_max": 226000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 2.6,
+   "chunk_max": 593000,
+   "drop_age_days": 63,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 287000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 2.4,
+   "chunk_max": 684000,
+   "drop_age_days": 400,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 367000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 1.3,
+   "chunk_max": 37000,
+   "drop_age_days": 27,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 4.2,
+   "victim_chunk_max": 226000
+  },
+  {
+   "cashout": "atm",
+   "chunk_gap_min": 3.5,
+   "chunk_max": 414000,
+   "drop_age_days": 55,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 10.8,
+   "victim_chunk_max": 228000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 1103000,
+   "drop_age_days": 63,
+   "drops_per_phone": 1,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 2.1,
+   "victim_chunk_max": 291000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 1.6,
+   "chunk_max": 348000,
+   "drop_age_days": 54,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.3,
+   "victim_chunk_max": 291000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 1.1,
+   "chunk_max": 512000,
+   "drop_age_days": 72,
+   "drops_per_phone": 2,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.4,
+   "victim_chunk_max": 291000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 965000,
+   "drop_age_days": 400,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 284000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 19.2,
+   "chunk_max": 31000,
+   "drop_age_days": 7,
+   "drops_per_phone": 1,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 2.6,
+   "victim_chunk_max": 70000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 805000,
+   "drop_age_days": 54,
+   "drops_per_phone": 4,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 291000
+  }
+ ],
+ "fake_seller": [
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 4.4,
+   "chunk_max": 316000,
+   "drop_age_days": 30,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 16.9,
+   "victim_chunk_max": 1500000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 5.5,
+   "chunk_max": 116000,
+   "drop_age_days": 378,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 33.7,
+   "victim_chunk_max": 354000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 2.9,
+   "chunk_max": 656000,
+   "drop_age_days": 7,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 18.4,
+   "victim_chunk_max": 74000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 3.1,
+   "chunk_max": 211000,
+   "drop_age_days": 25,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 16.8,
+   "victim_chunk_max": 1500000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 3.0,
+   "chunk_max": 300000,
+   "drop_age_days": 21,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 10.4,
+   "victim_chunk_max": 10000000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 378000,
+   "drop_age_days": 400,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 15.7,
+   "victim_chunk_max": 1500000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 4.0,
+   "chunk_max": 64000,
+   "drop_age_days": 3,
+   "drops_per_phone": 2,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 7.5,
+   "victim_chunk_max": 664000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 14.3,
+   "chunk_max": 300000,
+   "drop_age_days": 64,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 11.1,
+   "victim_chunk_max": 1500000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 43.5,
+   "chunk_max": 747000,
+   "drop_age_days": 62,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 22.3,
+   "victim_chunk_max": 107000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 3.0,
+   "chunk_max": 1086000,
+   "drop_age_days": 358,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 75.5,
+   "victim_chunk_max": 1500000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 58.0,
+   "chunk_max": 54000,
+   "drop_age_days": 76,
+   "drops_per_phone": 1,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 7.6,
+   "victim_chunk_max": 108000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 1.9,
+   "chunk_max": 255000,
+   "drop_age_days": 42,
+   "drops_per_phone": 5,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 35.0,
+   "victim_chunk_max": 106000
+  }
+ ],
+ "social_fan": [
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 4.1,
+   "chunk_max": 500000,
+   "drop_age_days": 35,
+   "drops_per_phone": 6,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 316000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 20.4,
+   "chunk_max": 301000,
+   "drop_age_days": 32,
+   "drops_per_phone": 2,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.3,
+   "victim_chunk_max": 216000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 26.8,
+   "chunk_max": 583000,
+   "drop_age_days": 3,
+   "drops_per_phone": 4,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 316000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 2.7,
+   "chunk_max": 844000,
+   "drop_age_days": 3,
+   "drops_per_phone": 6,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 316000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 1.1,
+   "chunk_max": 890000,
+   "drop_age_days": 3,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.1,
+   "victim_chunk_max": 999000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 4.4,
+   "chunk_max": 1200000,
+   "drop_age_days": 82,
+   "drops_per_phone": 6,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 316000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 298000,
+   "drop_age_days": 21,
+   "drops_per_phone": 2,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 2.2,
+   "victim_chunk_max": 326000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 1.4,
+   "chunk_max": 1200000,
+   "drop_age_days": 23,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 5.2,
+   "victim_chunk_max": 250000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 15.7,
+   "chunk_max": 433000,
+   "drop_age_days": 19,
+   "drops_per_phone": 2,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 250000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 1.1,
+   "chunk_max": 1200000,
+   "drop_age_days": 23,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 3.6,
+   "victim_chunk_max": 271000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 1.7,
+   "chunk_max": 394000,
+   "drop_age_days": 3,
+   "drops_per_phone": 1,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 496000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 6.8,
+   "chunk_max": 1200000,
+   "drop_age_days": 21,
+   "drops_per_phone": 1,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 250000
+  }
+ ],
+ "structuring": [
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 5.2,
+   "chunk_max": 1163000,
+   "drop_age_days": 68,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 7.0,
+   "victim_chunk_max": 239000
+  },
+  {
+   "cashout": "atm",
+   "chunk_gap_min": 12.0,
+   "chunk_max": 1200000,
+   "drop_age_days": 37,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 17.9,
+   "victim_chunk_max": 237000
+  },
+  {
+   "cashout": "atm",
+   "chunk_gap_min": 8.7,
+   "chunk_max": 618000,
+   "drop_age_days": 55,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 31.3,
+   "victim_chunk_max": 239000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 32.1,
+   "chunk_max": 1200000,
+   "drop_age_days": 400,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 8.3,
+   "victim_chunk_max": 975000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 16.4,
+   "chunk_max": 450000,
+   "drop_age_days": 22,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 48000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 15.4,
+   "chunk_max": 413000,
+   "drop_age_days": 87,
+   "drops_per_phone": 4,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 16.7,
+   "victim_chunk_max": 240000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 30.0,
+   "chunk_max": 576000,
+   "drop_age_days": 51,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 6.1,
+   "victim_chunk_max": 241000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 1.9,
+   "chunk_max": 908000,
+   "drop_age_days": 67,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 13.0,
+   "victim_chunk_max": 240000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 3.1,
+   "chunk_max": 1200000,
+   "drop_age_days": 400,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.4,
+   "victim_chunk_max": 253000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 5.1,
+   "chunk_max": 378000,
+   "drop_age_days": 88,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 74.8,
+   "victim_chunk_max": 64000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 57.0,
+   "chunk_max": 427000,
+   "drop_age_days": 48,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 7.0,
+   "victim_chunk_max": 241000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 12.0,
+   "chunk_max": 547000,
+   "drop_age_days": 62,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 50.0,
+   "victim_chunk_max": 200000
+  }
+ ],
+ "student_crypto": [
+  {
+   "cashout": "atm",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 1200000,
+   "drop_age_days": 40,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 5.7,
+   "victim_chunk_max": 102000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 2.7,
+   "chunk_max": 291000,
+   "drop_age_days": 34,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 17.8,
+   "victim_chunk_max": 144000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 5.2,
+   "chunk_max": 400000,
+   "drop_age_days": 50,
+   "drops_per_phone": 2,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 5.4,
+   "victim_chunk_max": 102000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 1.3,
+   "chunk_max": 524000,
+   "drop_age_days": 24,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 144000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 284000,
+   "drop_age_days": 387,
+   "drops_per_phone": 2,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 2.9,
+   "victim_chunk_max": 558000
+  },
+  {
+   "cashout": "crypto",
+   "chunk_gap_min": 9.3,
+   "chunk_max": 363000,
+   "drop_age_days": 3,
+   "drops_per_phone": 2,
+   "fan_out": 3,
+   "layers": 1,
+   "pause_min": 7.0,
+   "victim_chunk_max": 60000
+  },
+  {
+   "cashout": "crypto+atm",
+   "chunk_gap_min": 5.9,
+   "chunk_max": 172000,
+   "drop_age_days": 31,
+   "drops_per_phone": 1,
+   "fan_out": 1,
+   "layers": 1,
+   "pause_min": 3.2,
+   "victim_chunk_max": 144000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 2.3,
+   "chunk_max": 1106000,
+   "drop_age_days": 42,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 7.1,
+   "victim_chunk_max": 294000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 1.1,
+   "chunk_max": 1200000,
+   "drop_age_days": 59,
+   "drops_per_phone": 2,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 5.6,
+   "victim_chunk_max": 292000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 1.0,
+   "chunk_max": 311000,
+   "drop_age_days": 29,
+   "drops_per_phone": 2,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 5.4,
+   "victim_chunk_max": 297000
+  },
+  {
+   "cashout": "ext",
+   "chunk_gap_min": 14.8,
+   "chunk_max": 332000,
+   "drop_age_days": 400,
+   "drops_per_phone": 1,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 2.0,
+   "victim_chunk_max": 298000
+  },
+  {
+   "cashout": "atm+ext",
+   "chunk_gap_min": 2.3,
+   "chunk_max": 467000,
+   "drop_age_days": 44,
+   "drops_per_phone": 2,
+   "fan_out": 2,
+   "layers": 1,
+   "pause_min": 3.6,
+   "victim_chunk_max": 205000
+  }
+ ]
+}

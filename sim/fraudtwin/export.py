@@ -1,7 +1,9 @@
 """Готовые прогоны в JSON для фронта (подстраховка демо без бэкенда).
 
 python3 -m fraudtwin.export --out ../app/public/scenarios
-Те же функции будет отдавать FastAPI (/world, /attack).
+Результат: <out>/ru/*.json и <out>/en/*.json (профили в p_<id>/), числа одинаковые, тексты на языке.
+Для текущего фронта ru дублируется по старому пути <out>/*.json (флаг --no-legacy выключает).
+Те же функции отдаёт FastAPI (/world, /attack) с параметром lang.
 """
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from .schemes import PRESETS, plan_attack, preset
 from .engine import honest_cost
 from .feed import run_attack_feed, honest_feed
 from .client_check import thresholds
+from .i18n import LANGS, translate
 from .model import model_info
 
 BENCH_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "model", "benchmark.json")
@@ -149,16 +152,25 @@ def scenario_payload(world: World, key: str, rules: Rules = DEFAULT_RULES, seed:
     }
 
 
-def export_profile(out: str, calib: dict, name: str) -> None:
-    """Всё для одного профиля банка: bank, схемы, дыры ИИ-мошенника, отчёт."""
-    from .redteam import search, hole_scenario
+def export_profile(out: str, calib: dict, name: str, langs=LANGS, legacy: bool = False,
+                   sub: str = "") -> None:
+    """Всё для одного профиля банка: bank, схемы, дыры ИИ-мошенника, отчёт.
+    Считается один раз по-русски, затем для каждого языка тексты переводятся (числа те же).
+    out/<lang>/<sub>/*.json; legacy=True дублирует ru в out/<sub>/*.json (старый путь фронта)."""
+    from .redteam import search_strong, hole_scenario
     from .report import build_report, calib_profile, calib_rules
 
-    def dump(fname: str, data: dict) -> None:
-        with open(os.path.join(out, fname), "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    targets = [(os.path.join(out, lang, sub), lang) for lang in langs]
+    if legacy:
+        targets.append((os.path.join(out, sub), "ru"))
+    for d, _ in targets:
+        os.makedirs(d, exist_ok=True)
 
-    os.makedirs(out, exist_ok=True)
+    def dump(fname: str, data: dict) -> None:
+        for d, lang in targets:
+            with open(os.path.join(d, fname), "w", encoding="utf-8") as f:
+                json.dump(translate(data, lang), f, ensure_ascii=False, separators=(",", ":"))
+
     world = generate_world(calib_profile(calib))
     rules = calib_rules(calib)
     dump("bank.json", bank_payload(world, rules, name, calib))
@@ -166,7 +178,7 @@ def export_profile(out: str, calib: dict, name: str) -> None:
     for key in PRESETS:
         data = scenario_payload(world, key, rules)
         dump(f"{key}.json", data)
-        rt = search(world, key, rules)
+        rt = search_strong(world, key, rules)
         rts[key] = rt
         rt_out = dict(rt)
         rt_out["scenario"] = hole_scenario(world, rt, rules)
@@ -177,22 +189,25 @@ def export_profile(out: str, calib: dict, name: str) -> None:
     rep = build_report(world, rules, name, calib, rts)
     dump("report.json", rep)
     print(f"{name}: дыр {rep['summary']['holes_found']}/{rep['summary']['schemes']}, "
-          f"уходит {rep['summary']['hole_withdrawn']/1e6:.1f}M из {rep['summary']['attempted']/1e6:.1f}M")
+          f"уходит {rep['summary']['hole_withdrawn']/1e6:.1f}M из {rep['summary']['hole_attempted']/1e6:.1f}M, "
+          f"с моделью {rep['summary']['rematch_withdrawn']/1e6:.1f}M")
 
 
 def main() -> None:
-    """Демо-банк в корень папки, остальные готовые профили в подпапки p_<id>."""
+    """Демо-банк в корень языковой папки, остальные профили в подпапки p_<id>."""
     from .report import CALIB_PRESETS
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "..", "app",
                                                   "public", "scenarios"))
     ap.add_argument("--only", default=None, help="id профиля (demo, digital, regional)")
+    ap.add_argument("--no-legacy", action="store_true",
+                    help="не дублировать ru по старому пути <out>/*.json")
     args = ap.parse_args()
     for p in CALIB_PRESETS:
         if args.only and p["id"] != args.only:
             continue
-        out = args.out if p["id"] == "demo" else os.path.join(args.out, f"p_{p['id']}")
-        export_profile(out, p["values"], p["name"])
+        export_profile(args.out, p["values"], p["name"], legacy=not args.no_legacy,
+                       sub="" if p["id"] == "demo" else f"p_{p['id']}")
 
 
 if __name__ == "__main__":

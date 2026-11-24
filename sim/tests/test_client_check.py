@@ -171,8 +171,13 @@ class PayloadTest(unittest.TestCase):
                             "client_check.json")
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
-        self.assertEqual(d["cases"]["high"]["transfer"], self.p["cases"]["high"]["transfer"])
-        self.assertEqual(d["stats"], self.p["stats"])
+        # готовый прогон строится на дыре, найденной экспортом (большой бюджет поиска): та же дыра из redteam-файла
+        rt = os.path.join(os.path.dirname(path), "redteam_student_crypto.json")
+        with open(rt, encoding="utf-8") as f:
+            ov = json.load(f)["overrides"]
+        p = demo_payload(self.w, overrides=ov)
+        self.assertEqual(d["cases"]["high"]["transfer"], p["cases"]["high"]["transfer"])
+        self.assertEqual(d["stats"], p["stats"])
         self.assertIn("robust", d)
 
 

@@ -1,13 +1,8 @@
-// Общее для сцены и 3D-слоя: тайминг, смысловые цвета, изгиб движения.
+// Общее для сцены и 3D-слоя: тайминг, выходы, изгиб движения.
 
 export const SPEED = 28 // минут симуляции в секунду: атака идёт около 10 с
 export const LINE_MIN = 0.55 * SPEED // перевод летит 550 мс; в этот момент число «Выведено» прибавляет сумму
 export const STOP = new Set(['blocked', 'suspended', 'cancelled', 'frozen_src', 'frozen_dst'])
-export const C = {
-  money: '#B07CFF', leak: '#F0365A', leakText: '#FF6B85', stop: '#1FCFAE',
-  node: '#807C9C', edge: '#2C2A40', track: '#4A4766', bg: '#15132A',
-}
-export const EXIT_TITLE: Record<string, string> = { crypto: 'Крипто P2P', atm: 'Банкомат', ext: 'Другой банк' }
 export const EXIT_ORDER = ['crypto', 'ext', 'atm']
 
 export function exitKey(role?: string) { return role === 'trader' ? 'crypto' : role === 'atm' ? 'atm' : 'ext' }
