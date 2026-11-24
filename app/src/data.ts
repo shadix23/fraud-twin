@@ -90,6 +90,10 @@ export interface Redteam {
   // v21 (wow-v21, п. 1): поиск мог не дойти до лучшей атаки, тогда доля - нижняя оценка; лучшая атака, пересчитанная на правилах профиля.
   // Поля опциональные: нет поля - пишем как раньше. Имена согласовать с backend (sim/fraudtwin/api.py)
   lower_bound?: boolean; profile_pct?: number | null
+  // усиленный поиск: рестарты, посев из банка атак, доводка. В history поколения 0..gens-1 - первый запуск (поколение 0 - стартовая
+  // популяция с посевом), gen >= gens - улучшения от других запусков, посева и доводки. budget_s есть только у живого ответа
+  search?: { restarts: number; pop: number; gens: number; polish: number; seeded: number; restart_pct: number[]; spread_pct: number }
+  budget_s?: number | null
 }
 
 /** Доля лучшей атаки - нижняя оценка («не меньше»): признак сверху ответа или в best */

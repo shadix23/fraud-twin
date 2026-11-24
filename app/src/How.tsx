@@ -7,6 +7,7 @@ import { intl, kztShort, num } from './format'
 import { useLang } from './i18n'
 import type { EntryFacts } from './Entry'
 import { DotGrid } from './ui'
+import { sampleTries } from './Gap'
 
 // «Как устроено» (F6, бриф v20): белый лист. Сетка 2x2 по четырём задачам кейса (капс-метка сверху, заголовок снизу,
 // в середине живой кусок продукта из настоящих данных), карточка модели с проверкой на невиданных схемах (точками),
@@ -140,7 +141,8 @@ export default function How({ open, bank, facts, onClose, onStep }: { open: bool
     return <RuleRow key={k} name={name} value={value} on={on} />
   }
   const above = facts ? facts.tries.filter((p) => p > facts.base).length : 0
-  const dots = facts ? facts.tries.map((p) => (p > facts.base ? 'var(--color-leak-dot)' : 'var(--color-dot-neutral)')) : []
+  // равномерная выборка 200 попыток (5 полных рядов по 40), подпись считает все попытки
+  const dots = facts ? sampleTries(facts.tries, 200).map((p) => (p > facts.base ? 'var(--color-leak-dot)' : 'var(--color-dot-neutral)')) : []
   const modelPct = facts?.modelPct
 
   // живой кусок продукта в каждой плите: строка правила, карта точек, число, строка предупреждения

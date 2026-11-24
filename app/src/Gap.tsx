@@ -33,6 +33,25 @@ export function runningPct(d: Redteam, n: number): number {
   return d.base.pct + (d.best.pct - d.base.pct) * k
 }
 
+// Фазы усиленного поиска (data.ts, Redteam.search): поколение 0 - стартовая популяция с посевом из банка атак, дальше эволюция
+// первого запуска, gen >= search.gens - улучшения от других запусков и доводки. Старые прогоны без search: посев и эволюция
+export type Phase = 'seed' | 'evo' | 'tail'
+export function phaseOf(h: RedteamTry, d: Redteam): Phase {
+  if (h.gen === 0) return 'seed'
+  const g = d.search?.gens
+  return g != null && h.gen >= g ? 'tail' : 'evo'
+}
+export const phaseText = (h: RedteamTry, d: Redteam, t: Dict) => {
+  const p = phaseOf(h, d)
+  return p === 'evo' ? t.gap.gen(h.gen + 1) : t.gap.phases[p]
+}
+
+/** Равномерная выборка попыток для мини-карт (вход, «Как устроено»): все фазы в своей доле, порядок сохраняется */
+export function sampleTries<T>(xs: T[], n: number): T[] {
+  if (xs.length <= n) return xs
+  return Array.from({ length: n }, (_, k) => xs[Math.floor(((k + 0.5) / n) * xs.length)])
+}
+
 const pctText = (v: number, lang: Lang) => (Math.round(v * 10) % 10 === 0 ? String(Math.round(v)) : num(v, lang))
 const ruleTitle = (key: string, meta: RuleMeta[], t: Dict) => t.rules.names[key] ?? meta.find((m) => m.key === key)?.title ?? key
 
@@ -59,7 +78,8 @@ export function Pct({ v }: { v: number }) {
 
 export interface MapState { data: Redteam | null; n: number; searching: boolean; error: string | null }
 
-// Карта поиска: X попытка 1-200 с отметками поколений, Y доля выведенного 0-100%, пунктир - схема из библиотеки
+// Карта поиска: X порядковый номер записанной попытки по всем фазам (посев, эволюция, доводка), Y доля выведенного 0-100%,
+// пунктир - схема из библиотеки. Короткие фазы (посев 20-30 попыток, доводка 1-5) получают не меньше 8% ширины, иначе их не видно
 // Вау 1: нижняя плита шага «Дыра» держит две карты, переключатель в её шапке. Одна плита, одна высота: сцена над ней не прыгает
 export type MapTab = 'search' | 'tradeoff'
 export function MapTabs({ tab, onTab }: { tab: MapTab; onTab: (t: MapTab) => void }) {
@@ -100,7 +120,7 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
   const small = W < 560
   const r = small ? 2 : 3
   const x0 = r + 6, x1 = W - r - 6, y0 = 24, y1 = H - 24
-  const total = d?.evals ?? 200
+  const total = d?.history.length ?? 200
   // Y по всему прогону сразу (не по уже показанным точкам), чтобы шкала не прыгала во время поиска; шаг 10%
   const [lo, hi] = useMemo(() => {
     if (!d) return [0, 100]
@@ -110,16 +130,47 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
     if (u - l < 30) { l = Math.max(0, u - 30); u = Math.max(u, l + 30) }
     return [l, u]
   }, [d])
-  const x = (i: number) => x0 + ((i - 1) / Math.max(1, total - 1)) * (x1 - x0)
+  // доля ширины для каждой попытки: фазы идут подряд, внутри фазы попытки равномерно
+  const lay = useMemo(() => {
+    const at = new Map<number, number>()
+    const segs: { p: Phase; from: number; to: number }[] = []
+    if (!d || !d.history.length) return { at, segs }
+    const runs: { p: Phase; xs: RedteamTry[] }[] = []
+    for (const h of d.history) {
+      const p = phaseOf(h, d)
+      if (runs.at(-1)?.p === p) runs.at(-1)!.xs.push(h); else runs.push({ p, xs: [h] })
+    }
+    const N = d.history.length, MIN = runs.length > 1 ? 0.08 : 0
+    const share = runs.map((r) => (r.p === 'evo' ? r.xs.length / N : Math.max(MIN, r.xs.length / N)))
+    const sum = share.reduce((a, b) => a + b, 0)
+    let from = 0
+    runs.forEach((r, k) => {
+      const w = share[k] / sum
+      r.xs.forEach((h, j) => at.set(h.i, from + ((j + 0.5) / r.xs.length) * w))
+      segs.push({ p: r.p, from, to: from + w })
+      from += w
+    })
+    return { at, segs }
+  }, [d])
+  const fx = (f: number) => x0 + f * (x1 - x0)
+  const x = (i: number) => fx(lay.at.get(i) ?? 0)
   const y = (p: number) => y1 - ((Math.min(hi, Math.max(lo, p)) - lo) / (hi - lo)) * (y1 - y0)
 
-  // поколения: тонкая отметка на границе, номер под серединой
-  const gens = useMemo(() => {
-    if (!d) return []
-    const g = new Map<number, { a: number; b: number }>()
-    for (const h of d.history) { const v = g.get(h.gen); g.set(h.gen, v ? { a: Math.min(v.a, h.i), b: Math.max(v.b, h.i) } : { a: h.i, b: h.i }) }
-    return [...g.entries()].sort((p, q) => p[0] - q[0]).map(([gen, v]) => ({ n: gen + 1, ...v }))
-  }, [d])
+  // прореживание: точек не больше, чем помещается без сплошной полосы (шаг ~2,2 px); рекорды, доводка и лучшая остаются всегда
+  const vis = useMemo(() => {
+    const keep = new Set<number>()
+    if (!d) return keep
+    const cap = Math.max(60, Math.floor((x1 - x0) / 2.2))
+    const stride = Math.max(1, Math.ceil(d.history.length / cap))
+    let top = d.base.fit
+    const b = bestTry(d.history)
+    d.history.forEach((h, k) => {
+      const rec = h.fit > top
+      if (rec) top = h.fit
+      if (k % stride === 0 || rec || (b && h.i === b.i) || phaseOf(h, d) === 'tail') keep.add(h.i)
+    })
+    return keep
+  }, [d, x1 - x0]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => {
     const c = new Map<string, number>()
@@ -129,7 +180,7 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
 
   const cur = hover != null ? shown.find((h) => h.i === hover) ?? null : null
   const tip = (h: RedteamTry) => ({
-    head: t.gap.tryTitle(h.i, h.gen + 1) + (best && h.i === best.i ? `. ${t.gap.best}` : ''),
+    head: t.gap.tryTitle(h.i, d ? phaseText(h, d, t) : '') + (best && h.i === best.i ? `. ${t.gap.best}` : ''),
     body: t.gap.tryText(pctText(h.pct, lang), h.rule ? ruleTitle(h.rule, meta, t) : null),
   })
 
@@ -138,14 +189,15 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
     const rc = e.currentTarget.getBoundingClientRect()
     const px = e.clientX - rc.left, py = e.clientY - rc.top
     let k: RedteamTry | null = null, dist = Infinity
-    for (const h of shown) { const q = (x(h.i) - px) ** 2 + ((y(h.pct) - py) * 0.6) ** 2; if (q < dist) { dist = q; k = h } }
+    for (const h of shown) { if (!vis.has(h.i)) continue; const q = (x(h.i) - px) ** 2 + ((y(h.pct) - py) * 0.6) ** 2; if (q < dist) { dist = q; k = h } }
     setHover(k && dist < 48 * 48 ? k.i : null)
   }
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!shown.length) return
     const last = shown[shown.length - 1].i
     const at = hover ?? best?.i ?? last
-    const step: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 20, PageDown: -20 }
+    const big = Math.max(20, Math.round(total / 10))
+    const step: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: big, PageDown: -big }
     let next: number | null = null
     if (e.key in step) next = at + step[e.key]
     else if (e.key === 'Home') next = 1
@@ -172,28 +224,31 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
           </p>
         )}
         <p className="t-caption text-ink-3 tabular-nums sm:ml-auto" data-map-caption>
-          {!d ? (s.error ? '' : t.gap.wait) : s.searching ? t.gap.running(shown.at(-1)?.i ?? 0, d.evals) : t.gap.caption(d.evals, num(d.seconds, lang))}
+          {!d ? (s.error ? '' : t.gap.wait) : s.searching ? t.gap.running(shown.at(-1)?.i ?? 0, total) : t.gap.caption(d.evals, num(d.seconds, lang))}
         </p>
       </div>
 
       <div ref={box} className="relative mt-1.5 h-[180px] lg:h-auto lg:min-h-0 lg:flex-1">
         {d && (
           <svg width={W} height={H} className="absolute inset-0 block overflow-visible" aria-hidden>
-            {gens.slice(1).map((g) => {
-              const gx = (x(g.a - 1) + x(g.a)) / 2
-              return <line key={g.n} x1={gx} x2={gx} y1={y1 + 3} y2={y1 + 8} stroke={NEUTRAL} strokeWidth={1} />
+            {/* фазы: отметка на границе, подпись крайних фаз прижата к краю, средней по центру */}
+            {lay.segs.slice(1).map((g) => <line key={g.p + g.from} x1={fx(g.from)} x2={fx(g.from)} y1={y1 + 3} y2={y1 + 8} stroke={NEUTRAL} strokeWidth={1} />)}
+            {lay.segs.map((g, k) => {
+              const first = k === 0, last = k === lay.segs.length - 1 && k > 0
+              return (
+                <text key={g.p + g.from} x={first ? fx(g.from) : last ? fx(g.to) : fx((g.from + g.to) / 2)} y={H - 3}
+                  textAnchor={first ? 'start' : last ? 'end' : 'middle'} fontSize={13} fontWeight={500} fill={INK3} data-map-phase={g.p}>{t.gap.phases[g.p]}</text>
+              )
             })}
-            {gens.map((g) => (
-              <text key={g.n} x={(x(g.a) + x(g.b)) / 2} y={H - 3} textAnchor="middle" fontSize={13} fontWeight={500} fill={INK3}>{g.n}</text>
-            ))}
             <line x1={x0} x2={x1} y1={level} y2={level} stroke={INK3} strokeWidth={1} strokeDasharray="3 5" />
             {shown.map((h) => {
+              if (!vis.has(h.i)) return null
               const up = h.pct > d.base.pct + 1e-9
               const ring = pin != null && (h.rule || '') === pin
               return (
                 <circle key={h.i} cx={x(h.i)} cy={y(h.pct)} r={r} fill={up ? LEAK_DOT : NEUTRAL}
                   stroke={ring ? INK : undefined} strokeWidth={ring ? 1.5 : undefined}
-                  className={stagger || s.searching ? 'dot-in' : undefined} style={stagger ? { animationDelay: `${(h.i - 1) * 8}ms` } : undefined} />
+                  className={stagger || s.searching ? 'dot-in' : undefined} style={stagger ? { animationDelay: `${Math.round((lay.at.get(h.i) ?? 0) * 1400)}ms` } : undefined} />
               )
             })}
             {best && (
@@ -209,7 +264,7 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
         {!d && !s.error && (
           <svg width={W} height={H} className="absolute inset-0 block" aria-hidden>
             {/* ожидание ответа: пустые точки вдоль дна, по одной на будущую попытку */}
-            {Array.from({ length: 50 }, (_, k) => <circle key={k} cx={x(1 + k * 4)} cy={y1} r={r} fill={TRACK} />)}
+            {Array.from({ length: 50 }, (_, k) => <circle key={k} cx={fx(k / 49)} cy={y1} r={r} fill={TRACK} />)}
           </svg>
         )}
         {s.error && (
@@ -278,7 +333,7 @@ export function Changes({ data, searching }: { data: Redteam | null; searching: 
       {/* маркер и номер попытки те же, что у лучшей точки на карте: так плита связана с картой */}
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <h2 id="changes-h" className="t-title flex items-center gap-2.5 text-ink">{bt && <BestMark />}{t.gap.changes}</h2>
-        {bt && <span className="t-caption shrink-0 text-ink-3 tabular-nums" title={t.gap.tryTitle(bt.i, bt.gen + 1)} data-changes-try={bt.i}>{t.gap.tryShort(bt.i)}</span>}
+        {bt && <span className="t-caption shrink-0 text-ink-3 tabular-nums" title={t.gap.tryTitle(bt.i, phaseText(bt, data!, t))} data-changes-try={bt.i}>{t.gap.tryShort(bt.i)}</span>}
       </div>
       {!data || searching ? (
         <p className="mt-2 text-[16px] text-ink-2">{t.gap.changesWait}</p>

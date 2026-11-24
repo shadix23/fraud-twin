@@ -4,6 +4,7 @@ import { readyDir, type ClientCheck, type Ctx, type Redteam, type Report } from 
 import { useLang, useT } from './i18n'
 import { intl, num } from './format'
 import { DotGrid, Money, StepTile, useTilt } from './ui'
+import { sampleTries } from './Gap'
 
 // Вход v20 (бриф, «Экраны: Вход»): один экран, не лендинг. Слева плита с заголовком, справа сцена (в App),
 // снизу ряд пяти плиток шагов 3-2-2-2-3, в каждой одно настоящее число из готовых прогонов.
@@ -69,7 +70,8 @@ export function EntryTiles({ facts, withdrawn, schemes, onPick }: { facts: Entry
   const row = useRef<HTMLElement>(null)
   useTilt(row)
   // точки в тоне янтарной плитки: прорыв глубоким коричневым, остальные его прозрачной тенью
-  const dots = facts ? facts.tries.map((p) => (p > facts.base ? '#4A2A06' : 'rgba(74,42,6,0.22)')) : []
+  // усиленный поиск пишет 750+ попыток: на плитке равномерная выборка 200 (8 полных рядов по 25), доля прорывов та же
+  const dots = facts ? sampleTries(facts.tries, 200).map((p) => (p > facts.base ? '#4A2A06' : 'rgba(74,42,6,0.22)')) : []
   const tile = 'flex min-h-[176px] flex-col p-5 short:min-h-[132px] short:p-4 max-lg:min-h-[156px]'
   const head = (name: string) => (
     <span className="flex items-center justify-between gap-2"><span className="t-caps">{name}</span><ArrowRight size={16} strokeWidth={2} className="tile-go opacity-80" aria-hidden /></span>
