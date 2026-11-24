@@ -1,0 +1,260 @@
+{
+ "synthetic": true,
+ "how": "leave-one-scheme-out: модель учится на 4 схемах и проверяется на пятой; уровень счёта (дроп или нет); деньги - атака пресета в демо-банке 5 000 клиентов",
+ "dataset": {
+  "trained_on": [
+   "student_crypto",
+   "social_fan",
+   "structuring",
+   "fake_seller",
+   "carousel"
+  ],
+  "worlds": 400,
+  "rows": 1048035,
+  "drop_rows": 31355,
+  "algo": "HistGradientBoosting (scikit-learn)",
+  "summary": {
+   "pr_auc_mean": {
+    "rules": 0.351,
+    "heuristic": 0.518,
+    "boosting": 0.977
+   },
+   "withdrawn_pct_mean": {
+    "rules": 44.5,
+    "heuristic": 9.82,
+    "boosting": 2.2
+   }
+  }
+ },
+ "threshold_honest_flag_rate": 0.0005,
+ "rows": [
+  {
+   "held_out": "student_crypto",
+   "title": "Студенческие карты, вывод в крипту",
+   "accounts": 107973,
+   "drops": 2825,
+   "pr_auc": {
+    "rules": 0.555,
+    "heuristic": 0.785,
+    "boosting": 1.0
+   },
+   "roc_auc_boosting": 1.0,
+   "at_threshold": {
+    "rules": {
+     "precision": 0.653,
+     "recall": 0.844
+    },
+    "heuristic": {
+     "precision": 0.552,
+     "recall": 0.86
+    },
+    "boosting": {
+     "precision": 0.952,
+     "recall": 1.0
+    }
+   },
+   "money": {
+    "attempted_kzt": 11450500,
+    "rules_withdrawn_kzt": 4247550,
+    "model_withdrawn_kzt": 0,
+    "rules_withdrawn_pct": 37.1,
+    "model_withdrawn_pct": 0.0,
+    "model_honest_suspended_per_10k": 3.0
+   },
+   "money_heuristic": {
+    "attempted_kzt": 11450500,
+    "rules_withdrawn_kzt": 4247550,
+    "model_withdrawn_kzt": 0,
+    "rules_withdrawn_pct": 37.1,
+    "model_withdrawn_pct": 0.0,
+    "model_honest_suspended_per_10k": 65.2
+   }
+  },
+  {
+   "held_out": "social_fan",
+   "title": "Звонок «службы безопасности», веер дропов",
+   "accounts": 108416,
+   "drops": 2156,
+   "pr_auc": {
+    "rules": 0.267,
+    "heuristic": 0.348,
+    "boosting": 0.997
+   },
+   "roc_auc_boosting": 1.0,
+   "at_threshold": {
+    "rules": {
+     "precision": 0.443,
+     "recall": 0.584
+    },
+    "heuristic": {
+     "precision": 0.415,
+     "recall": 0.628
+    },
+    "boosting": {
+     "precision": 0.945,
+     "recall": 0.988
+    }
+   },
+   "money": {
+    "attempted_kzt": 9427600,
+    "rules_withdrawn_kzt": 2065500,
+    "model_withdrawn_kzt": 0,
+    "rules_withdrawn_pct": 21.9,
+    "model_withdrawn_pct": 0.0,
+    "model_honest_suspended_per_10k": 1.5
+   },
+   "money_heuristic": {
+    "attempted_kzt": 9427600,
+    "rules_withdrawn_kzt": 2065500,
+    "model_withdrawn_kzt": 0,
+    "rules_withdrawn_pct": 21.9,
+    "model_withdrawn_pct": 0.0,
+    "model_honest_suspended_per_10k": 65.2
+   }
+  },
+  {
+   "held_out": "structuring",
+   "title": "Дробление под лимит",
+   "accounts": 102989,
+   "drops": 831,
+   "pr_auc": {
+    "rules": 0.325,
+    "heuristic": 0.211,
+    "boosting": 0.912
+   },
+   "roc_auc_boosting": 0.997,
+   "at_threshold": {
+    "rules": {
+     "precision": 0.343,
+     "recall": 0.945
+    },
+    "heuristic": {
+     "precision": 0.213,
+     "recall": 0.626
+    },
+    "boosting": {
+     "precision": 0.88,
+     "recall": 0.827
+    }
+   },
+   "money": {
+    "attempted_kzt": 12667600,
+    "rules_withdrawn_kzt": 8980200,
+    "model_withdrawn_kzt": 1392300,
+    "rules_withdrawn_pct": 70.9,
+    "model_withdrawn_pct": 11.0,
+    "model_honest_suspended_per_10k": 3.0
+   },
+   "money_heuristic": {
+    "attempted_kzt": 12667600,
+    "rules_withdrawn_kzt": 8980200,
+    "model_withdrawn_kzt": 5722000,
+    "rules_withdrawn_pct": 70.9,
+    "model_withdrawn_pct": 45.2,
+    "model_honest_suspended_per_10k": 65.2
+   }
+  },
+  {
+   "held_out": "fake_seller",
+   "title": "Фейковый продавец, много мелких жертв",
+   "accounts": 103259,
+   "drops": 345,
+   "pr_auc": {
+    "rules": 0.209,
+    "heuristic": 0.57,
+    "boosting": 0.976
+   },
+   "roc_auc_boosting": 1.0,
+   "at_threshold": {
+    "rules": {
+     "precision": 0.214,
+     "recall": 0.977
+    },
+    "heuristic": {
+     "precision": 0.148,
+     "recall": 0.977
+    },
+    "boosting": {
+     "precision": 0.799,
+     "recall": 0.991
+    }
+   },
+   "money": {
+    "attempted_kzt": 2879800,
+    "rules_withdrawn_kzt": 2609500,
+    "model_withdrawn_kzt": 0,
+    "rules_withdrawn_pct": 90.6,
+    "model_withdrawn_pct": 0.0,
+    "model_honest_suspended_per_10k": 0.0
+   },
+   "money_heuristic": {
+    "attempted_kzt": 2879800,
+    "rules_withdrawn_kzt": 2609500,
+    "model_withdrawn_kzt": 112800,
+    "rules_withdrawn_pct": 90.6,
+    "model_withdrawn_pct": 3.9,
+    "model_honest_suspended_per_10k": 65.2
+   }
+  },
+  {
+   "held_out": "carousel",
+   "title": "Карусель через сеть онлайн-казино",
+   "accounts": 110475,
+   "drops": 1348,
+   "pr_auc": {
+    "rules": 0.401,
+    "heuristic": 0.674,
+    "boosting": 1.0
+   },
+   "roc_auc_boosting": 1.0,
+   "at_threshold": {
+    "rules": {
+     "precision": 0.467,
+     "recall": 0.855
+    },
+    "heuristic": {
+     "precision": 0.378,
+     "recall": 0.898
+    },
+    "boosting": {
+     "precision": 0.934,
+     "recall": 0.999
+    }
+   },
+   "money": {
+    "attempted_kzt": 6509100,
+    "rules_withdrawn_kzt": 132900,
+    "model_withdrawn_kzt": 0,
+    "rules_withdrawn_pct": 2.0,
+    "model_withdrawn_pct": 0.0,
+    "model_honest_suspended_per_10k": 1.5
+   },
+   "money_heuristic": {
+    "attempted_kzt": 6509100,
+    "rules_withdrawn_kzt": 132900,
+    "model_withdrawn_kzt": 0,
+    "rules_withdrawn_pct": 2.0,
+    "model_withdrawn_pct": 0.0,
+    "model_honest_suspended_per_10k": 65.2
+   }
+  }
+ ],
+ "summary": {
+  "pr_auc_mean": {
+   "rules": 0.351,
+   "heuristic": 0.518,
+   "boosting": 0.977
+  },
+  "withdrawn_pct_mean": {
+   "rules": 44.5,
+   "heuristic": 9.82,
+   "boosting": 2.2
+  }
+ },
+ "notes": [
+  "Всё на синтетике: это проверка обобщения на новую схему, а не качество на данных банка.",
+  "GNN (GraphSAGE) не обучали: в этой сборке только CPU Mac, отложено в «что дальше».",
+  "LightGBM заменён гистограммным бустингом scikit-learn (тот же класс алгоритмов)."
+ ],
+ "seconds": 84
+}

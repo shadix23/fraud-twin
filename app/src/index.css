@@ -1,0 +1,323 @@
+/* Montserrat: выбор пользователя 23.11.2026 (v11, фиолетовая палитра); локально, без сети */
+@import "@fontsource-variable/montserrat";
+@import "@fontsource-variable/jetbrains-mono";
+@import "tailwindcss";
+
+/* низкий экран ноутбука или проектора 1280x720: плотнее по вертикали, чтобы шаги шли без прокрутки */
+@custom-variant short (@media (min-width: 1024px) and (max-height: 820px));
+/* низкий экран любой ширины: телефон клиента плотнее */
+@custom-variant tight (@media (max-height: 820px));
+/* ноутбук 900-1000 px по высоте: в ленте шага «Защита» две строки вместо трёх, чтобы панель шла без прокрутки */
+@custom-variant mid (@media (min-width: 1024px) and (max-height: 1000px));
+
+/* Fraud Twin: цвет только по смыслу: leak = выведено, stop = остановлено, money = деньги в пути.
+   v11, 23.11.2026: палитра референсов пользователя вместо BCC (решение пользователя: «тот цвет, который как на референсах»).
+   Цвета сняты пипеткой: hexacoin-landing (фон #080815, карточка #120f30, кнопка #9000f8, «Crypto» #a008e0, свечения #582098 и #8e2d8d),
+   security-alert-glass (фон #030416, кнопка #3070e0 -> #5888e8, розовый #e288af), purple-banking-app (свечение #5010b8). */
+@theme {
+  /* Имена токенов прежние (gold-* и champagne теперь означают фиолетовый акцент), значения тёмные;
+     для печати отчёта светлые значения возвращаются в @media print. Контраст WCAG 2.1 на фоне #0b0a1c */
+  --color-paper: #0b0a1c;      /* базовый тёмный слой панели и листа */
+  --color-page: #110f28;       /* дорожки, утопленные поля */
+  --color-line: #2c2856;
+  --color-hair: #1c1a3a;
+  --color-ink: #f1effa;        /* 17,2:1 */
+  --color-ink-2: #c3bfdc;      /* 11,0:1 */
+  --color-ink-3: #9a95bd;      /* 6,9:1 */
+  --color-deep: #dccbff;       /* заголовки акцентом: светлая лаванда, 13,1:1 */
+  --color-leak: #ff5c7a;       /* потеря на тёмном: розово-красный, 6,6:1 */
+  --color-leak-scene: #ff5c7a;
+  --color-stop: #3ee6c4;       /* защита на тёмном: мятно-циановый, 12,4:1; 9,6:1 на stop-bg */
+  --color-stop-scene: #1fcfae;
+  --color-stop-bg: #0c2a2c;
+  --color-stop-line: #1d7a70;
+  --color-money: #b07cff;      /* фиолетовый акцент: бренд и деньги в пути, 6,7:1 */
+  --color-champagne: #dccbff;
+  --color-bronze: #6a4bc8;     /* волосяные рамки, не текст */
+  --color-gold-ink: #c39bff;   /* акцент текстом на тёмном, 8,8:1 */
+  --color-gold-line: #3d2d78;
+  --color-gold-on: #ffffff;    /* белый текстом на градиенте кнопки: 5,0:1 на #4361ee, 5,9:1 на #9000f8 */
+  --color-scene: #080815;
+  --color-scene-0: #04040c;
+  --color-scene-2: #110f28;
+  --color-scene-3: #181538;
+  --color-scene-line: #231f48;
+  --color-scene-edge: #5f5a8f;
+  --color-ivory: #f1effa;
+  --color-mist: #b0abcf;       /* 9,1:1 */
+  --color-scene-ink-3: #948fb8; /* 6,5:1 */
+  --font-sans: "Montserrat Variable", "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  /* шкала исходно под Onest (сейчас Montserrat, он шире), поэтому заголовки 550, суммы 600, трекинг мягче; мелкие подписи без трекинга */
+  --font-weight-head: 500;
+  --tracking-head: -0.012em;
+  --tracking-display: -0.025em;
+    /* стекло: грань 1 px светлее сверху, внутреннее свечение, мягкая тень вниз */
+  --shadow-lift: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 0 0 1px rgba(200, 190, 255, 0.09), inset 0 0 24px rgba(130, 70, 240, 0.06), 0 12px 28px -16px rgba(0, 0, 0, 0.7);
+  --shadow-lift-hover: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(200, 190, 255, 0.16), inset 0 0 28px rgba(130, 70, 240, 0.1), 0 14px 32px -16px rgba(0, 0, 0, 0.75);
+  /* живая карточка: одна на экран, кольцо 1 px акцента и широкая мягкая тень */
+  --shadow-live: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(176, 124, 255, 0.6), 0 0 0 4px rgba(144, 0, 248, 0.12), 0 14px 36px -14px rgba(144, 0, 248, 0.45);
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+  /* motion-спека behance-banking.md, п. 5 */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);        /* standard: перемещения */
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);    /* out-expo-soft: появления */
+  --ease-in-quick: cubic-bezier(0.4, 0, 1, 1);   /* исчезновения */
+  --ease-settle: cubic-bezier(0.34, 1.2, 0.64, 1); /* только карточка дыры, перелёт < 4% */
+}
+
+html { font-size: 16px; }
+html, body, #root { min-height: 100%; }
+body {
+  background: var(--color-scene);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* табличные цифры по умолчанию (таблицы, часы, счётчики); крупные суммы переключаются на пропорциональные */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: #6d3cf5; color: #fff; }
+:focus-visible { outline: 3px solid var(--color-stop); outline-offset: 2px; border-radius: 8px; }
+.ctl-main:focus-visible { outline-color: var(--color-champagne); }
+.scene :focus-visible, .chrome :focus-visible { outline-color: var(--color-stop-scene); }
+
+/* Заголовки: вес 560, трекинг -0,02em, перенос по балансу (Siriva site.css 94-99, landing.css 100-122) */
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
+/* Главное число: единственный элемент такого размера на экране. Единица 0,42em и приглушена (Siriva .k-stat__u) */
+.hero-num {
+  --number-flow-mask-height: 0.08em;
+  font-size: clamp(60px, min(5.8vw, 9.5vh), 92px);
+  font-weight: 300;
+  line-height: 0.95;
+  letter-spacing: var(--tracking-display);
+}
+/* крупные суммы: пропорциональные цифры, чтобы «7,1» не разъезжалось */
+.hero-num, .second-num, .num-prop { font-variant-numeric: proportional-nums; }
+.unit { color: var(--color-ink-3); font-weight: 500; letter-spacing: -0.01em; }
+.hero-num .unit { font-size: 0.42em; margin-left: 0.14em; }
+.second-num { --number-flow-mask-height: 0.08em; font-size: 40px; font-weight: 350; line-height: 1; letter-spacing: -0.02em; }
+.second-num .unit { font-size: 0.45em; margin-left: 0.14em; }
+/* пара чисел одного веса: «Выведено» и «Задето честных». Размер общий, чтобы ни одно не было главным */
+.pair-num {
+  --number-flow-mask-height: 0.08em;
+  font-size: clamp(38px, min(3.2vw, 6.2vh), 60px);
+  font-weight: 300; line-height: 1; letter-spacing: var(--tracking-display);
+  font-variant-numeric: proportional-nums; white-space: nowrap;
+}
+.pair-num .unit { font-size: 0.4em; margin-left: 0.16em; }
+.pair-num .unit-zero { font-size: 0.62em; font-weight: 300; }
+
+/* Вход: текст слева поверх живой сцены, затемнение только под текстом */
+.intro { background: linear-gradient(180deg, rgba(8, 8, 21, 0.5) 0%, rgba(8, 8, 21, 0.9) 34%, rgba(8, 8, 21, 0.97) 60%); }
+@media (min-width: 1024px) {
+  .intro { background: linear-gradient(90deg, rgba(8, 8, 21, 0.96) 0%, rgba(8, 8, 21, 0.9) 30%, rgba(8, 8, 21, 0.55) 46%, rgba(8, 8, 21, 0) 62%); }
+}
+/* на входе сцена уменьшена: подписи слоёв мельче, чтобы не слипались на 1280 px */
+.scene:has([data-intro]) [data-label] { font-size: 14px !important; }
+.intro-title { font-size: clamp(31px, min(3.5vw, 5.6vh), 56px); font-weight: 500; line-height: 1.08; letter-spacing: -0.028em; }
+.intro-num { font-size: clamp(44px, min(4.4vw, 8vh), 72px); font-weight: 300; line-height: 0.95; letter-spacing: var(--tracking-display); font-variant-numeric: proportional-nums; white-space: nowrap; }
+.intro-num .unit { font-size: 0.42em; margin-left: 0.28em; }
+/* подпись автопоказа: плотное стекло, чтобы читалась поверх подписей сцены */
+.tour-card { border-radius: 22px; background: linear-gradient(180deg, rgba(28, 24, 68, 0.94), rgba(11, 10, 28, 0.96)); box-shadow: var(--shadow-live); }
+
+
+/* ---------- Акцент референсов: двухтоновый заголовок как «Crypto» у HexaCoin, светлее оригинала #a008e0 ради контраста ---------- */
+.gold-text {
+  /* низ #a855f7: 5,0:1 на #080815 (у оригинала #a008e0 только 3,4:1) */
+  background: linear-gradient(180deg, #d2adff 8%, #bb7dff 50%, #a855f7 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+/* светящаяся нить по низу шапки: индиго -> фиолет -> маджента, гаснет к краям */
+.gold-rule {
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none; z-index: 1;
+  background: linear-gradient(90deg, rgba(67,97,238,0) 0%, #4361ee 14%, #9000f8 40%, #c48bff 50%, #9000f8 60%, #b03fc4 86%, rgba(176,63,196,0) 100%);
+}
+/* разделитель на листе */
+.gold-hr { border-top: 1px solid transparent; border-image: linear-gradient(90deg, #c39bff, #9000f8 45%, #6d3cf5 80%, #b9a4f0) 1; }
+/* кант панели: тонкая фиолетовая грань слева, на стыке со сценой */
+@media (min-width: 1024px) { .panel-kant { box-shadow: inset 1px 0 0 #6a4bc8, inset 3px 0 0 rgba(144, 0, 248, 0.18); } }
+/* активный шаг: подсвеченная пилюля на стекле, фиолетовое свечение снизу */
+.seg-gold {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(144, 0, 248, 0.2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(196, 150, 255, 0.32), 0 4px 18px -6px rgba(144, 0, 248, 0.7);
+}
+/* фон всего приложения: почти чёрный с фиолетовым отливом; фиолет-индиго сверху слева, маджента справа снизу (HexaCoin, security-alert-glass) */
+.app-glow::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(48% 38% at 18% -8%, rgba(110, 50, 235, 0.34), transparent 72%),
+    radial-gradient(34% 40% at 104% 96%, rgba(170, 45, 160, 0.24), transparent 70%);
+}
+
+/* свечение поверх 3D-холста: экран-смешение, статично, не стоит кадров */
+.scene-glow { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(50% 42% at 12% -6%, rgba(90, 60, 240, 0.26), transparent 72%), radial-gradient(40% 36% at 78% 108%, rgba(170, 45, 160, 0.16), transparent 70%); }
+
+/* Свет за курсором: только мышь, без reduced motion; на проекторе курсора нет, это бонус */
+.lit { position: relative; isolation: isolate; }
+.lit::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(144, 0, 248, 0.16), transparent 70%);
+  transition: opacity 200ms var(--ease-out);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) { .lit:hover::after { opacity: 1; } }
+
+/* Тёмный корпус не плоский: фиолетовое свечение сверху, виньетка к краю и зерно 3% против полос (Siriva landing.css 738) */
+.corpus { position: relative; isolation: isolate; }
+.corpus::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(55% 45% at 30% -6%, rgba(110, 50, 235, 0.26), transparent 70%),
+    radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(4, 4, 12, 0.7) 100%);
+}
+.corpus::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.035; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@layer components {
+  /* Контролы на Base UI: радиус 8, высота 48, подпись 18, кольцо фокуса 3 px.
+     Ховер 120 мс standard, нажатие scale 0,98 за 90 мс (спека п. 8); ховеры Tailwind v4 уже только для мыши */
+  .ctl {
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-lg px-4 text-[18px] font-semibold
+      transition-[background-color,border-color,color,transform] duration-[120ms] ease-[var(--ease-out)]
+      active:scale-[0.98] active:duration-[90ms] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 select-none;
+  }
+  /* главная: градиентная пилюля индиго -> фиолет со свечением (кнопки security-alert-glass и HexaCoin).
+     Текст белый: 5,0:1 на #4361ee у левого края, 5,8:1 в середине, 5,9:1 на #9000f8 справа */
+  .ctl-main {
+    @apply text-gold-on rounded-full;
+    background: linear-gradient(100deg, #4361ee 0%, #6d3cf5 48%, #9000f8 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(20, 6, 60, 0.3), 0 0 0 1px rgba(196, 150, 255, 0.35), 0 8px 28px -8px rgba(110, 60, 245, 0.65), 0 4px 22px -10px rgba(144, 0, 248, 0.7);
+    transition: filter 120ms var(--ease-out), transform 120ms var(--ease-out), box-shadow 200ms var(--ease-out);
+  }
+  .ctl-main:not(:disabled):hover { filter: brightness(1.06) saturate(1.05); }
+  .ctl-main .next { color: var(--color-gold-on); transition: transform 200ms var(--ease-out); }
+  .ctl-main:not(:disabled):hover .next { transform: translateX(3px); }
+  .ctl-main:disabled { filter: saturate(0.4); }
+  /* вторичная: стеклянная пилюля с обводкой */
+  .ctl-quiet, .ctl-scene { @apply rounded-full border border-white/15 bg-white/[0.04] text-ivory backdrop-blur-md hover:border-white/25 hover:bg-white/[0.08]; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+  /* стеклянная карточка: полупрозрачный фон, грань 1 px, внутреннее свечение, скругление 22 */
+  .glass { border-radius: 22px; background: linear-gradient(180deg, rgba(30, 26, 72, 0.55), rgba(14, 12, 34, 0.5)); box-shadow: var(--shadow-lift); }
+  .glass-hover:hover { box-shadow: var(--shadow-lift-hover); }
+}
+
+/* Шаг панели: вход 200 мс снизу на 8 px, выход мгновенный (не держит ввод) */
+@keyframes step-in { from { opacity: 0; transform: translateY(8px); } }
+.step-in { animation: step-in 200ms var(--ease-soft) both; }
+
+/* Карточка дыры: из точки чуть ниже, 360 мс settle */
+@keyframes hole-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.hole-card { animation: hole-in 360ms var(--ease-settle) both; transform-origin: 50% 0; }
+.hole-row { animation: rise 280ms var(--ease-soft) both; }
+
+/* Отчёт: три числа сводки по очереди, шкалы рисуются слева направо */
+.rep-num { animation: rise 360ms var(--ease-soft) both; }
+@keyframes bar-in { from { transform: scaleX(0); } }
+.rep-bar { transform-origin: 0 50%; animation: bar-in 700ms var(--ease-out) 240ms both; }
+
+
+
+/* Карточка «как это видит клиент»: тёмное стекло как «Security Alert», без корпуса устройства */
+.client-card {
+  background: linear-gradient(180deg, rgba(28, 24, 68, 0.88), rgba(9, 8, 24, 0.93));
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 0 0 0 1px rgba(200, 190, 255, 0.13), inset 0 0 40px rgba(130, 70, 240, 0.09), 0 30px 60px -24px rgba(0, 0, 0, 0.85), 0 0 60px -20px rgba(144, 0, 248, 0.4);
+}
+.client-card :focus-visible { outline-color: var(--color-stop); outline-offset: 2px; border-radius: 999px; }
+.client-cta, .client-sec {
+  display: flex; height: 46px; flex: 1 1 0; min-width: 0; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 0 14px;
+  font-size: 15px; font-weight: 600; white-space: nowrap; transition: filter 120ms var(--ease-out), background-color 120ms var(--ease-out), transform 90ms var(--ease-out); user-select: none;
+}
+/* «Это не я» у клиента: та же градиентная пилюля, белый текст от 5,0:1 */
+.client-cta { color: #fff; background: linear-gradient(100deg, #4361ee, #6d3cf5 48%, #9000f8); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 22px -8px rgba(144, 0, 248, 0.75); }
+.client-cta:hover { filter: brightness(1.06); }
+.client-sec { border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05); color: var(--color-ink); }
+.client-sec:hover { background: rgba(255, 255, 255, 0.1); }
+.client-cta:active, .client-sec:active { transform: scale(0.98); }
+/* на телефоне кнопки карточки стопкой: в ряд подписи не помещаются */
+@media (max-width: 639px) { .client-row > .client-cta, .client-row > .client-sec { flex: none; } }
+.client-link { height: 32px; flex-shrink: 0; font-size: 15px; color: var(--color-ink-3); text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.2); text-underline-offset: 3px; }
+.client-link:hover { color: var(--color-ink); }
+/* иконка-предупреждение в светящемся квадрате, как узлы референса */
+.alert-chip { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; color: #ffd6e0;
+  background: linear-gradient(160deg, rgba(255, 92, 122, 0.42), rgba(150, 30, 80, 0.38)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 0 0 1px rgba(255, 140, 170, 0.35), 0 0 22px -4px rgba(255, 92, 122, 0.55); }
+/* шкала риска: мята -> фиолет -> розово-красный, точка на значении риска */
+.risk-track { position: relative; height: 6px; border-radius: 999px; background: linear-gradient(90deg, #1fcfae, #9000f8 52%, #ff5c7a); box-shadow: 0 0 14px -2px rgba(255, 92, 122, 0.45); }
+.risk-dot { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 999px; transform: translate(-50%, -50%); background: #fff; box-shadow: 0 0 0 3px rgba(255, 92, 122, 0.45), 0 0 14px rgba(255, 92, 122, 0.8); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.client-spin { width: 18px; height: 18px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--color-stop); animation: spin 700ms linear infinite; }
+/* смена содержимого карточки: 220 мс снизу на 8 px, причины по очереди через 60 мс */
+.client-swap { animation: step-in 220ms var(--ease-soft) both; }
+.client-reason { animation: rise 280ms var(--ease-soft) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-delay: 0ms !important; }
+  /* смена шага остаётся кроссфейдом 100 мс без сдвига */
+  @keyframes fade-only { from { opacity: 0; } }
+  .step-in { animation: fade-only 100ms linear both !important; animation-duration: 100ms !important; }
+}
+
+/* Печать отчёта: белый лист A4 без интерфейса */
+@media print {
+  @page { size: A4; margin: 16mm; }
+  :root {
+    /* светлый лист, акцент глубокий фиолетовый; контраст на #f7f6fb: ink 16,9, ink-3 6,0, deep 11,5, leak 5,7, stop 5,2, акцент 7,0 */
+    --color-paper: #f7f6fb; --color-page: #efedf7; --color-line: #d9d5e8; --color-hair: #e6e3f0;
+    --color-ink: #15122b; --color-ink-2: #45415e; --color-ink-3: #5f5b78; --color-deep: #3b1a8a;
+    --color-leak: #c01845; --color-stop: #00756a; --color-stop-bg: #dcf1ee; --color-stop-line: #a6dbd3;
+    --color-gold-ink: #6a2fc2; --color-gold-line: #cdbdf0; --color-money: #7a3cf0;
+  }
+  .glass, .print-sheet { background: #fff !important; box-shadow: none !important; }
+  html, body, #root { height: auto; background: #fff !important; }
+  .no-print { display: none !important; }
+  .print-sheet { box-shadow: none !important; background: #fff !important; border: 0 !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; }
+  .break-avoid { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; transition: none !important; }
+}
+
+/* ---------- v15: лента переводов, «Как устроено» ---------- */
+/* большой лист поверх двойника: плотное тёмное стекло, как подпись автопоказа */
+.sheet { border-radius: 26px; background: linear-gradient(180deg, rgba(26, 22, 64, 0.97), rgba(10, 9, 26, 0.98)); box-shadow: var(--shadow-lift), 0 40px 80px -30px rgba(0, 0, 0, 0.9), 0 0 80px -30px rgba(144, 0, 248, 0.45); }
+.sheet :focus-visible { outline-color: var(--color-stop-scene); }
+/* текстовая кнопка-ссылка: акцентом, со стрелкой */
+.link-btn { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; white-space: nowrap; font-size: 15px; font-weight: 600; color: var(--color-gold-ink); transition: color 120ms var(--ease-out); }
+.link-btn:hover { color: var(--color-champagne); }
+.link-btn svg { transition: transform 200ms var(--ease-out); }
+.link-btn:hover svg { transform: translateX(2px); }
+.tab-pill { height: 40px; border-radius: 999px; padding: 0 16px; font-size: 15px; font-weight: 600; white-space: nowrap; color: var(--color-ink-2); transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out); }
+.tab-pill:hover { color: var(--color-ink); }
+.tab-pill[data-pressed] { background: rgba(255, 255, 255, 0.09); color: var(--color-ink); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+@media (max-width: 479px) { .tab-pill { padding: 0 12px; font-size: 14px; } }
+/* честные переводы, задетые мерой: свой тон, тот же что у числа «Задето честных» */
+.feed-honest { background: rgba(176, 124, 255, 0.08); }
+tr.feed-honest > td:first-child { padding-left: 12px; border-radius: 10px 0 0 10px; }
+tr.feed-honest > td:last-child { padding-right: 12px; border-radius: 0 10px 10px 0; }
+li.feed-honest { padding-left: 12px; padding-right: 12px; border-radius: 10px; }
+/* новая строка ленты входит снизу, остальные не двигаются рывком */
+.feed-row { animation: rise 240ms var(--ease-soft) both; }
+.how-h { margin-top: 18px; font-size: 18px; font-weight: var(--font-weight-head); letter-spacing: var(--tracking-head); color: var(--color-gold-ink); }
+/* цепочка: точки на одной линии, линия гаснет к последнему звену */
+.how-dot { position: absolute; left: 0; top: 0.5em; width: 7px; height: 7px; border-radius: 999px; background: var(--color-money); box-shadow: 0 0 10px rgba(176, 124, 255, 0.8); }
+@media (min-width: 1024px) {
+  .how-chain { position: relative; }
+  .how-chain::before { content: ""; position: absolute; left: 0; right: 8%; top: 3px; height: 1px; background: linear-gradient(90deg, rgba(176, 124, 255, 0.7), rgba(67, 97, 238, 0.35) 70%, rgba(67, 97, 238, 0)); }
+  .how-dot { top: 0; }
+}
+/* высота экрана на телефоне: dvh, чтобы нижние кнопки не уходили под панель Safari */
+.app-h { min-height: 100vh; min-height: 100dvh; }
+/* отчёт: три числа одного размера, между ними волосяная линия */
+.rep-three { font-size: clamp(40px, 6.2vw, 54px); font-weight: 300; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: proportional-nums; white-space: nowrap; }
+@media (min-width: 640px) {
+  .rep-top > div + div { padding-left: 24px; box-shadow: inset 1px 0 0 var(--color-line); }
+  .rep-top > div { padding-right: 16px; }
+}
+.link-btn .rotate-180 { transform: rotate(180deg); }
+.link-btn:hover .rotate-180 { transform: rotate(180deg); }
+@media print { .rep-top > div + div { box-shadow: inset 1px 0 0 #d9d5e8; } .rep-three { font-size: 40px; } }
+
+/* v16: номер шага в верхней тройке отчёта (1 сейчас -> 2 с моделью -> 3 мошенник адаптировался) */
+.rep-step { display: inline-grid; flex: none; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--color-ink); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
+@media print { .rep-step { box-shadow: inset 0 0 0 1px #999; color: #333; } }
