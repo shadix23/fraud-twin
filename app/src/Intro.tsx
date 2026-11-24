@@ -12,10 +12,10 @@ export function Landing({ clients, onStart, onTour, onHow }: { clients: number; 
       initial={false} exit={{ opacity: 0, transition: { duration: reduced() ? 0 : 0.2, ease: [0.4, 0, 1, 1] } }}>
       <div data-cover="left" className="mt-auto w-full max-w-[680px] px-5 pb-6 pt-3 sm:px-8 sm:pb-8 lg:max-w-[min(680px,44vw)] lg:pb-20 lg:pl-12 lg:pr-0 short:pb-10">
         <h2 className="intro-title">Краш-тест антифрода. ИИ находит дыру в правилах банка <span className="gold-text">раньше мошенников</span></h2>
-        <p className="mt-3 max-w-[560px] text-[16px] leading-snug text-ink-2 sm:mt-4 sm:text-[17px] short:mt-3 short:text-[16px]" data-intro-lead>Банк получает отчёт: где дыра, какая мера её закрывает и скольких честных клиентов она заденет.</p>
+        <p className="mt-3 max-w-[560px] text-balance text-[17px] leading-snug text-ink-2 sm:mt-4 sm:text-[18px] short:mt-3 short:text-[17px]" data-intro-lead>Банк получает отчёт: дыра, мера и её цена для честных клиентов.</p>
         <div className="mt-5 flex flex-wrap items-end gap-x-5 gap-y-2 sm:mt-6 short:mt-4">
           <div className="intro-num text-leak">112<span className="unit">млрд ₸</span></div>
-          <p className="pb-1 text-[16px] leading-snug text-ink-2">прошло через карты дропперов в Казахстане<span className="block text-[15px] text-ink-3">АФМ РК, 11.07.2026<span className="max-sm:hidden">. Дроппер отдаёт свою карту мошенникам под вывод денег</span></span></p>
+          <p className="pb-1 text-[16px] leading-snug text-ink-2">прошло через карты <abbr className="cursor-help underline decoration-dotted decoration-1 underline-offset-4" title="Дроппер отдаёт свою карту мошенникам под вывод денег">дропперов</abbr> в Казахстане<span className="block text-[15px] text-ink-3">АФМ РК, 11.07.2026</span></p>
         </div>
         <div className="mt-6 flex flex-col gap-3 whitespace-nowrap sm:mt-8 sm:flex-row sm:flex-wrap short:mt-6">
           <button className="ctl ctl-main !justify-between gap-4 !px-6 short:!text-[16px]" onClick={onStart}>
@@ -25,10 +25,8 @@ export function Landing({ clients, onStart, onTour, onHow }: { clients: number; 
             <Play size={17} strokeWidth={2} aria-hidden />Показать за минуту
           </button>
         </div>
-        <p className="mt-4 text-[15px] leading-snug text-ink-3 sm:mt-6 short:mt-4">
-          Синтетический банк, он же двойник: {clients.toLocaleString('ru-RU')} клиентов, данных реальных людей нет.<span className="sm:block"> Параметры двойника - гипотезы.</span>
-        </p>
-        <button className="link-btn mt-2" onClick={onHow}>Четыре задачи кейса и как это устроено<ArrowRight size={15} strokeWidth={2} aria-hidden /></button>
+        <button className="link-btn mt-4 sm:mt-6 short:mt-4" onClick={onHow}>Четыре задачи кейса<ArrowRight size={15} strokeWidth={2} aria-hidden /></button>
+        <p className="mt-1 text-[14px] leading-snug text-ink-3" data-synthetic>Двойник синтетический: {clients.toLocaleString('ru-RU')} клиентов, данных реальных людей нет.</p>
       </div>
     </motion.div>
   )
@@ -36,11 +34,11 @@ export function Landing({ clients, onStart, onTour, onHow }: { clients: number; 
 
 // Автопоказ: те же шаги, что и вручную, с короткой подписью. Последняя стадия открывает отчёт без подписи
 export const TOUR = [
-  { id: 'attack', step: 'Атака', text: 'Деньги жертв идут через карты дропов, подставных студентов, в крипту. Правила ловят все цепочки, но поздно: часть денег уже ушла.', task: 'Предотвращение финансового мошенничества' },
-  { id: 'hole', step: 'Дыра', text: 'ИИ играет за мошенника: перебирает 200 вариантов схемы против правил этого банка.', task: 'Интеллектуальные механизмы безопасности' },
-  { id: 'holeRun', step: 'Защита', text: 'Сначала найденная атака без защиты: платежи частями, одно звено подставных карт вместо двух. Уходит уже две трети денег.', task: 'Интеллектуальные механизмы безопасности' },
-  { id: 'defense', step: 'Защита', text: 'Теперь с моделью: она смотрит на связи карты получателя, а не на один перевод. Та же атака выводит ноль, а честных задето почти столько же.', task: 'Выявление подозрительных транзакций' },
-  { id: 'client', step: 'Клиент', text: 'Та же модель проверяет получателя до перевода. Клиент видит причину и сам отменяет перевод.', task: 'Защита клиентов при денежных переводах' },
+  { id: 'attack', step: 'Атака', text: 'Деньги жертв идут через карты дропов в крипту. Правила ловят все цепочки, но поздно.', task: 'Предотвращение финансового мошенничества' },
+  { id: 'hole', step: 'Дыра', text: 'ИИ играет за мошенника: 200 вариантов схемы против правил этого банка.', task: 'Интеллектуальные механизмы безопасности' },
+  { id: 'holeRun', step: 'Защита', text: 'Найденная атака без защиты: платежи частями, одно звено дропов. Уходит две трети денег.', task: 'Интеллектуальные механизмы безопасности' },
+  { id: 'defense', step: 'Защита', text: 'Модель смотрит на связи карты, а не на один перевод. Та же атака выводит ноль, честных задето почти столько же.', task: 'Выявление подозрительных транзакций' },
+  { id: 'client', step: 'Клиент', text: 'Модель проверяет получателя до перевода. Клиент видит причину и сам отменяет.', task: 'Защита клиентов при денежных переводах' },
   { id: 'report', step: 'Отчёт', text: '', task: '' },
 ] as const
 export type TourId = (typeof TOUR)[number]['id']
@@ -61,7 +59,7 @@ export function TourCaption({ i, onStop }: { i: number; onStop: () => void }) {
       </div>
       <div key={s.id} className="step-in" role="status">
         <p className="mt-1 text-[17px] leading-snug">{s.text}</p>
-        <p className="mt-2 text-[15px] leading-snug text-ink-3">Задача кейса: {s.task.toLowerCase()}</p>
+        <p className="mt-2 text-[14px] leading-snug text-ink-3">Задача кейса: {s.task.toLowerCase()}</p>
       </div>
     </div>
   )

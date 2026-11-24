@@ -23,15 +23,15 @@ Fraud Twin строит цифрового двойника банка из аг
 
 | Вход | Атака |
 |---|---|
-| ![Вход](docs/screens/v18-0-landing.jpg) | ![Атака](docs/screens/v18-1-attack.jpg) |
+| ![Вход](docs/screens/v19-0-landing.jpg) | ![Атака](docs/screens/v19-1-attack.jpg) |
 | Дыра: ИИ нашёл обход, 67,9% денег мимо правил | Защита: меры и лента переводов |
-| ![Дыра](docs/screens/v18-2-hole.jpg) | ![Защита](docs/screens/v18-3-defense.jpg) |
+| ![Дыра](docs/screens/v19-2-hole.jpg) | ![Защита](docs/screens/v19-3-defense.jpg) |
 | Все переводы | Клиент |
-| ![Переводы](docs/screens/v18-3-feed.jpg) | ![Клиент](docs/screens/v18-4-client.jpg) |
+| ![Переводы](docs/screens/v19-3-feed.jpg) | ![Клиент](docs/screens/v19-4-client.jpg) |
 | Отчёт | Как устроено |
-| ![Отчёт](docs/screens/v18-5-report.jpg) | ![Как устроено](docs/screens/v18-7-how.jpg) |
+| ![Отчёт](docs/screens/v19-5-report.jpg) | ![Как устроено](docs/screens/v19-7-how.jpg) |
 
-Телефон, 375 px, шаг «Атака»: ![375 px](docs/screens/v18-6-mobile-attack.jpg)
+Телефон, 375 px, шаг «Атака»: ![375 px](docs/screens/v19-6-mobile-attack.jpg)
 
 ## Запуск за 2 минуты
 Нужен Node.js 20.19+ (проверено на 24). Интерфейс работает без сервера на готовых прогонах из `app/public/scenarios`.

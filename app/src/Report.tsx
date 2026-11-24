@@ -48,7 +48,7 @@ export default function Report({ ctx, onBack }: { ctx: Ctx; onBack: () => void }
       )}
       {!rep && !err && (
         <div className="mx-auto max-w-[840px] glass p-10 text-[18px] text-ink-2" aria-live="polite">
-          Собираем отчёт: 5 схем, ИИ-мошенник ищет дыры против правил и против модели. Живой пересчёт занимает до 20 секунд.
+          Собираем отчёт, до 20 секунд.
         </div>
       )}
       {rep && <Sheet r={rep} source={source} robust={robust} />}
@@ -91,35 +91,34 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
         <span className="absolute inset-x-0 bottom-0 h-[2px] bg-[linear-gradient(90deg,#4361ee,#9000f8_30%,#c48bff_55%,#9000f8_78%,#b03fc4)]" aria-hidden />
         {/* двухтоновый заголовок (tailark dusk): первая фраза чернилами, продолжение приглушено */}
         <h1 className="text-[36px] font-light leading-[1.1] tracking-[-0.03em] text-deep">Отчёт краш-теста антифрода. <span className="text-ink-3">{r.bank.name}</span></h1>
-        <p className="mt-3 text-[16px] text-ink-2">{date}. {r.bank.clients.toLocaleString('ru-RU')} {plural(r.bank.clients, 'клиент', 'клиента', 'клиентов')}, {r.bank.honest_tx.toLocaleString('ru-RU')} {plural(r.bank.honest_tx, 'честный перевод', 'честных перевода', 'честных переводов')} за сутки</p>
-        <p className="mt-1 flex items-center gap-2 text-[16px] text-ink-2"><span className="h-2 w-2 shrink-0 rotate-45 bg-money" aria-hidden />Синтетический банк, реальных данных клиентов нет. Параметры двойника - гипотезы</p>
+        <p className="mt-3 text-[16px] text-ink-2">{date}. Синтетический банк: {r.bank.clients.toLocaleString('ru-RU')} {plural(r.bank.clients, 'клиент', 'клиента', 'клиентов')}, {r.bank.honest_tx.toLocaleString('ru-RU')} {plural(r.bank.honest_tx, 'перевод', 'перевода', 'переводов')} за сутки</p>
       </header>
 
       {/* вывод одной фразой: жюри и фрод-директор читают его первым, цифры ниже его раскрывают */}
       <p className="mt-9 text-[22px] font-normal leading-snug tracking-[-0.015em] text-deep" data-rep-verdict>
-        Правила банка пропускают {dec(s.hole_pct)}% денег в найденных атаках. Модель на графе переводов закрывает эти дыры, {bypass > 0
-          ? <>но мошенник подстраивается: после нового поиска уходит {kzt(s.rematch_withdrawn)} вместо {kzt(s.hole_withdrawn)}. Поэтому краш-тест повторяют после каждой смены защиты.</>
-          : <>и новый поиск обхода не нашёл. Краш-тест всё равно повторяют после каждой смены защиты.</>}
+        Правила пропускают {dec(s.hole_pct)}% денег в найденных атаках. Модель на графе закрывает эти дыры, {bypass > 0
+          ? <>но мошенник подстраивается: после нового поиска уходит {kzt(s.rematch_withdrawn)} вместо {kzt(s.hole_withdrawn)}.</>
+          : <>и новый поиск обхода не нашёл.</>}
       </p>
       <p className="mt-3 text-[16px] leading-snug text-ink-2">
-        ИИ-мошенник нашёл дыру в {s.holes_found} из {s.schemes} схем. За сутки атаки мошенники пытались вывести {kzt(s.attempted)}. Все суммы посчитаны в синтетическом банке.
+        Дыра найдена в {s.holes_found} из {s.schemes} схем. Попытка вывода за сутки: {kzt(s.attempted)}.
       </p>
       {/* первая страница для фрод-директора: что уходит сейчас, что с мерой, что после нового поиска */}
       <div className="rep-top break-avoid mt-5 grid gap-y-5 sm:grid-cols-3" data-rep-top>
         <div>
           <div className="flex items-start text-[16px] leading-snug text-ink-2 sm:min-h-[44px]"><span className="rep-step">1</span><span>Сейчас уходит</span></div>
           <div className="rep-num rep-three mt-2 text-leak"><Kzt v={s.hole_withdrawn} unit="unit text-[0.42em] tracking-[-0.01em]" /></div>
-          <div className="mt-2 text-[15px] leading-snug text-ink-3">через найденные дыры, {dec(s.hole_pct)}% от попытки</div>
+          <div className="mt-2 text-[15px] leading-snug text-ink-3">{dec(s.hole_pct)}% от попытки</div>
         </div>
         <div>
           <div className="flex items-start text-[16px] leading-snug text-ink-2 sm:min-h-[44px]"><span className="rep-step">2</span><span>Те же атаки, с моделью</span></div>
           <div className="rep-num rep-three mt-2 text-stop" style={{ animationDelay: '90ms' }}>{mod ? <Kzt v={mod.hole_withdrawn} unit="unit text-[0.42em] tracking-[-0.01em]" /> : '-'}</div>
-          <div className="mt-2 text-[15px] leading-snug text-ink-3">{mod && base ? <>{mod.hole_withdrawn === 0 ? 'ноль, потому что эти атаки искали против правил, а не против модели. ' : ''}Задето честных {dec(mod.delayed_per_10k)} на 10 тыс. вместо {dec(base.delayed_per_10k)}</> : ''}</div>
+          <div className="mt-2 text-[15px] leading-snug text-ink-3">{mod && base ? <>задето честных {dec(mod.delayed_per_10k)} на 10 тыс. вместо {dec(base.delayed_per_10k)}</> : ''}</div>
         </div>
         <div>
           <div className="flex items-start text-[16px] leading-snug text-ink-2 sm:min-h-[44px]"><span className="rep-step">3</span><span>Мошенник ищет заново</span></div>
           <div className="rep-num rep-three mt-2 text-leak" style={{ animationDelay: '180ms' }}><Kzt v={s.rematch_withdrawn} unit="unit text-[0.42em] tracking-[-0.01em]" /></div>
-          <div className="mt-2 text-[15px] leading-snug text-ink-3">{bypass > 0 ? <>честный итог: уже против модели ИИ-мошенник находит обход в {bypass} из {s.schemes} схем</> : 'обхода модели ИИ-мошенник не нашёл'}</div>
+          <div className="mt-2 text-[15px] leading-snug text-ink-3">{bypass > 0 ? <>уже против модели: обход в {bypass} из {s.schemes} схем</> : 'обхода модели ИИ-мошенник не нашёл'}</div>
         </div>
       </div>
 
@@ -130,7 +129,7 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
         <section className="break-avoid" data-rep-client>
           <h2 className={H2}>Защита клиента при переводе</h2>
           <p className="mt-2 text-[16px] leading-relaxed text-ink-2">
-            Та же модель оценивает карту получателя до отправки. Клиент видит причину риска словами и сам отменяет перевод, деньги ещё у него.
+            Модель оценивает карту получателя до отправки. Клиент видит причину и сам отменяет перевод.
           </p>
           <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-3">
             <div>
@@ -139,15 +138,15 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
             </div>
             <div>
               <div className="num-prop text-[30px] font-light leading-none tracking-[-0.02em] text-leak">{dec(robust.victims.first_on_card_silent_pct)}%</div>
-              <p className="mt-2 text-[15px] leading-snug text-ink-2">первая жертва на свежей карте проходит молча: у карты ещё нет истории</p>
+              <p className="mt-2 text-[15px] leading-snug text-ink-2">первых жертв на свежей карте модель не видит: у карты нет истории</p>
             </div>
             <div>
               <div className="num-prop text-[30px] font-light leading-none tracking-[-0.02em] text-stop">{dec(robust.victims.repeat_on_card_covered_pct)}%</div>
-              <p className="mt-2 text-[15px] leading-snug text-ink-2">следующие жертвы предупреждены или карта уже заморожена</p>
+              <p className="mt-2 text-[15px] leading-snug text-ink-2">следующих жертв предупреждены или карта заморожена</p>
             </div>
           </div>
           <p className="mt-4 text-[14px] leading-snug text-ink-3">
-            Правовая опора: Закон РК «О платежах и платёжных системах», ст. 25-1. Банк вправе приостановить перевод не более чем на пять рабочих дней и сообщает клиенту причины (п. 3-1). Банк, перечисливший деньги получателю из базы Антифрод-центра, возмещает их клиенту (п. 7).
+            Закон РК «О платежах и платёжных системах», ст. 25-1: банк вправе приостановить перевод до пяти рабочих дней и сообщает причины (п. 3-1); перевод получателю из базы Антифрод-центра банк возмещает (п. 7).
           </p>
         </section>
       )}
@@ -222,7 +221,7 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-[14px] text-ink-2">Цена: прогон всего честного трафика двойника без атаки, сколько обычных переводов задержано.</p>
+      <p className="mt-2 text-[14px] text-ink-2">Цена: сколько честных переводов задержано за сутки без атаки.</p>
 
       {rest.length > 0 && (
         <>
@@ -235,7 +234,7 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
         </>
       )}
 
-      {/* на экране свёрнуто: отчёт короче на экран, пометка о синтетике и гипотезах стоит в шапке. В печати и PDF раскрыто всегда */}
+      {/* на экране свёрнуто: отчёт короче на экран, пометка о синтетике стоит в шапке и подвале. В печати и PDF раскрыто всегда */}
       <div className="no-print mt-12 border-t border-hair pt-4">
         <button className="link-btn !text-[16px]" onClick={() => setTech((v) => !v)} aria-expanded={tech} aria-controls="rep-tech" data-rep-tech-btn>
           {tech ? 'Свернуть параметры и ограничения' : `Параметры двойника и ограничения: ${r.caveats.length} ${plural(r.caveats.length, 'пункт', 'пункта', 'пунктов')}`}<ChevronDown size={16} strokeWidth={2} className={tech ? 'rotate-180' : ''} aria-hidden />
@@ -258,7 +257,7 @@ function Sheet({ r, source, robust }: { r: R; source: 'api' | 'json'; robust: Cl
       </div>
 
       <footer className="mt-10 border-t border-money pt-3 text-[14px] text-ink-3">
-        Fraud Twin. {source === 'api' ? 'Живой прогон симулятора' : 'Готовый прогон симулятора'}, {date}. Краш-тест на синтетическом банке, а не аудит реальной системы.
+        Fraud Twin. {source === 'api' ? 'Живой прогон симулятора' : 'Готовый прогон симулятора'}, {date}. Краш-тест на синтетическом банке, параметры двойника - гипотезы. Не аудит реальной системы.
       </footer>
     </article>
   )

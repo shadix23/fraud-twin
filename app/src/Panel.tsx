@@ -1,7 +1,7 @@
 import NumberFlow from '@number-flow/react'
 import { ArrowRight, Check, ChevronDown, Play } from 'lucide-react'
 import type { Bank, ClientCheck, Metrics, ModelInfo, Redteam, RunKey } from './data'
-import { dec, kzt, plural, ruleValue } from './format'
+import { dec, kzt, plural, RULE_RU, ruleValue } from './format'
 
 // Тайминги NumberFlow по спеке п. 1: 600 мс standard, прозрачность цифр короче; reduced motion библиотека гасит сама
 const FLOW = {
@@ -61,7 +61,7 @@ export function Invite({ clients, onTour }: { clients: number; onTour?: () => vo
       <div className="glass px-6 pb-5 pt-5 short:px-5 short:pb-4 short:pt-4">
         <h2 className="text-[22px] font-head leading-tight tracking-head">Банк пока спокоен</h2>
         <p className="mt-2 text-[16px] leading-snug text-ink-2">
-          {clients.toLocaleString('ru-RU')} синтетических клиентов живут обычный день. Запустите атаку и увидите, сколько денег уйдёт мимо правил и скольких честных заденет защита.
+          {clients.toLocaleString('ru-RU')} клиентов живут обычный день. Запустите атаку.
         </p>
         {onTour && (
           <button className="mt-3 flex min-h-11 items-center gap-2 text-[16px] font-semibold text-gold-ink hover:text-champagne short:mt-2" onClick={onTour}>
@@ -96,26 +96,29 @@ export function ClientPrice({ check }: { check: { data: ClientCheck | null; robu
   return (
     <section>
       <BlockTitle>Защита клиента при переводе</BlockTitle>
-      <p className="mt-2 text-[16px] leading-snug text-ink-2 short:hidden">Та же модель оценивает получателя до отправки. Деньги ещё у клиента, решение за ним.</p>
       {h != null && (
-        <div className="mt-5 short:mt-2">
+        <div className="mt-4 short:mt-2">
           <div className="pair-num text-ink">около {Math.round(h)}</div>
           <p className="mt-2 text-[16px] leading-snug text-ink-2">ложных предупреждений на&nbsp;10&nbsp;тыс. честных переводов</p>
-          <p className="mt-1.5 text-[14px] leading-snug text-ink-3" data-metric-note>Перевод при этом не задерживается. Это отдельный счёт от «Задето честных»: там задержки.</p>
         </div>
       )}
       {r && (
         <div className="mt-5 grid grid-cols-2 gap-5 border-t border-white/[0.07] pt-4 short:mt-3 short:pt-3">
           <div>
             <div className="num-prop text-[30px] font-light leading-none tracking-[-0.02em] text-leak">{dec(r.victims.first_on_card_silent_pct)}%</div>
-            <p className="mt-2 text-[15px] leading-snug text-ink-2">первая жертва на свежей карте проходит молча: у карты ещё нет истории</p>
+            <p className="mt-2 text-[15px] leading-snug text-ink-2">первых жертв на свежей карте модель не видит</p>
           </div>
           <div>
             <div className="num-prop text-[30px] font-light leading-none tracking-[-0.02em] text-stop">{dec(r.victims.repeat_on_card_covered_pct)}%</div>
-            <p className="mt-2 text-[15px] leading-snug text-ink-2">следующие предупреждены или карта уже заморожена</p>
+            <p className="mt-2 text-[15px] leading-snug text-ink-2">следующих жертв предупреждены или карта заморожена</p>
           </div>
-          <p className="col-span-2 -mt-1 text-[14px] leading-snug text-ink-3 short:hidden" data-first-victim>Это граница метода, и мы её показываем. Первый перевод на свежую карту могут остановить только правила банка. После заявления жертвы карту замораживают, и следующих защищает модель.</p>
         </div>
+      )}
+      {(h != null || r) && (
+        <More title="Как читать эти числа">
+          <p className="text-[15px] leading-snug text-ink-2" data-metric-note>Предупреждение не задерживает перевод. Это отдельный счёт от «Задето честных»: там задержки.</p>
+          {r && <p className="mt-2 text-[15px] leading-snug text-ink-2" data-first-victim>Граница метода: у свежей карты нет истории, первый перевод на неё останавливают только правила банка. После заявления жертвы карту замораживают, дальше защищает модель.</p>}
+        </More>
       )}
     </section>
   )
@@ -130,10 +133,11 @@ const SCENE_WORDS: [string, string][] = [
 export function SceneWords() {
   return (
     <section data-words>
-      <BlockTitle>Что на сцене</BlockTitle>
-      <dl className="mt-2 space-y-1 text-[15px] leading-snug short:mt-1 short:space-y-0.5">
-        {SCENE_WORDS.map(([w, d]) => <div key={w}><dt className="inline font-medium text-ink">{w}</dt><dd className="inline text-ink-2"> - {d}</dd></div>)}
-      </dl>
+      <More title="Что на сцене">
+        <dl className="space-y-1 text-[15px] leading-snug">
+          {SCENE_WORDS.map(([w, d]) => <div key={w}><dt className="inline font-medium text-ink">{w}</dt><dd className="inline text-ink-2"> - {d}</dd></div>)}
+        </dl>
+      </More>
     </section>
   )
 }
@@ -163,8 +167,8 @@ export function Rules({ bank, hits, note }: { bank: Bank; hits: Record<string, n
         {bank.rule_meta.map((r) => {
           const h = hits?.[r.key] ?? 0
           return (
-            <li key={r.key} className={`flex items-baseline justify-between gap-3 text-[16px] ${hits && !h ? 'text-ink-3' : ''}`}>
-              <span>{r.title}</span>
+            <li key={r.key} title={r.title} className={`flex items-baseline justify-between gap-3 text-[16px] ${hits && !h ? 'text-ink-3' : ''}`}>
+              <span className="first-letter:uppercase">{RULE_RU[r.key] ?? r.title}</span>
               {hits
                 ? <span className={`shrink-0 ${h ? 'font-medium text-stop' : ''}`}>{h ? 'сработало' : 'молчит'}</span>
                 : <span className="shrink-0 text-ink-2">{ruleValue(bank.rules[r.param], r.unit)}</span>}
@@ -179,9 +183,9 @@ export function Rules({ bank, hits, note }: { bank: Bank; hits: Record<string, n
 
 // Итог атаки одной строкой: правила сработали, но деньги успели уйти до заморозки
 export function caughtNote(m: Metrics) {
-  const head = `Правила заметили ${m.chains_caught} из ${m.chains_total} ${plural(m.chains_total, 'цепочки', 'цепочек', 'цепочек')}.`
-  if (m.minutes_to_first_freeze == null || !m.withdrawn_kzt) return head
-  return `${head} Первая заморозка через ${dec(Math.round(m.minutes_to_first_freeze))} мин: часть денег к этому времени уже ушла.`
+  const head = `Замечено ${m.chains_caught} из ${m.chains_total} ${plural(m.chains_total, 'цепочки', 'цепочек', 'цепочек')}`
+  if (m.minutes_to_first_freeze == null || !m.withdrawn_kzt) return `${head}.`
+  return `${head}, но первая заморозка только через ${dec(Math.round(m.minutes_to_first_freeze))} мин.`
 }
 
 const PARAM_RU: Record<string, string> = { victim_chunk_max: 'Платёж жертвы', layers: 'Слоёв дропов', pause_min: 'Пауза дропа' }
@@ -276,8 +280,8 @@ export function Unseen({ model, wide = false }: { model?: ModelInfo; wide?: bool
   const bars = [{ t: 'Только правила', v: m.rules, c: 'bg-leak', n: 'text-leak' }, { t: 'С моделью', v: m.boosting, c: 'bg-stop', n: 'text-stop' }]
   return (
     <section data-unseen>
-      <BlockTitle>{wide ? 'Схемы, которых модель не видела' : 'Новые для модели схемы: сколько уходит'}</BlockTitle>
-      {wide && <p className="mt-1 text-[15px] leading-snug text-ink-2">Модель учили на четырёх схемах и проверяли на пятой, и так для каждой из пяти. Сколько денег уходит в среднем:</p>}
+      <BlockTitle>{wide ? 'Схемы, которых модель не видела' : 'На новых схемах уходит'}</BlockTitle>
+      {wide && <p className="mt-1 text-[15px] leading-snug text-ink-2">Учили на четырёх схемах, проверяли на пятой. В среднем уходит:</p>}
       <div className={wide ? 'mt-4 space-y-3' : 'mt-2.5 space-y-2 short:mt-1.5 short:space-y-1'}>
         {bars.map((b) => (
           <div key={b.t} className={`grid items-center gap-3 ${wide ? 'grid-cols-[132px_minmax(0,1fr)_72px]' : 'grid-cols-[128px_minmax(0,1fr)_56px]'}`}>

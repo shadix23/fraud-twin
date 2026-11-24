@@ -83,10 +83,10 @@ export default function ClientCard({ data, auto, falsePer10k, onState, onClose }
   return (
     <div ref={root} tabIndex={-1} role="group" aria-label="Что видит клиент: проверка перевода"
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}
-      className="pointer-events-auto fixed inset-x-0 bottom-[73px] top-0 z-40 flex flex-col items-center overflow-y-auto bg-scene-0 px-4 py-4 outline-none lg:justify-center
+      className="pointer-events-auto fixed inset-x-0 bottom-(--bar-h) top-0 z-40 flex flex-col items-center overflow-y-auto bg-scene-0 px-4 py-4 outline-none phone-short:py-3 lg:justify-center
         lg:pointer-events-none lg:absolute lg:inset-auto lg:bottom-0 lg:right-6 lg:top-[64px] lg:z-20 lg:items-end lg:overflow-visible lg:bg-transparent lg:p-0">
-      <p className="mb-2.5 mt-auto flex items-center gap-1.5 text-[14px] leading-tight text-mist lg:hidden" data-synthetic><span className="h-1.5 w-1.5 rounded-full bg-stop-scene shadow-[0_0_8px_#1fcfae]" aria-hidden />Синтетический банк, экран клиента при переводе</p>
-      <motion.div data-cover="right" className="client-card phone pointer-events-auto relative w-full max-w-[392px] rounded-[26px] px-5 pb-4 pt-4 text-ink lg:max-w-[432px] lg:px-6 lg:pb-5 lg:pt-5 tight:lg:max-w-[404px] tight:lg:px-5 tight:lg:pb-4 tight:lg:pt-4"
+      <p className="mb-2.5 mt-auto phone-short:mb-2 flex items-center gap-1.5 text-[14px] leading-tight text-mist lg:hidden" data-synthetic><span className="h-1.5 w-1.5 rounded-full bg-stop-scene shadow-[0_0_8px_#1fcfae]" aria-hidden />Экран клиента при переводе</p>
+      <motion.div data-cover="right" className="client-card phone pointer-events-auto relative w-full max-w-[392px] rounded-[26px] px-5 pb-4 pt-4 phone-short:pb-3 phone-short:pt-3.5 text-ink lg:max-w-[432px] lg:px-6 lg:pb-5 lg:pt-5 tight:lg:max-w-[404px] tight:lg:px-5 tight:lg:pb-4 tight:lg:pt-4"
         initial={reduced() ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
         transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}>
         <div className="flex items-center gap-3 text-[15px] text-ink-3">
@@ -106,7 +106,7 @@ export default function ClientCard({ data, auto, falsePer10k, onState, onClose }
           : <Warning c={c} level={level} primary={primary} onPress={press} />)}
         {stage === 'after' && after && <After id={after} text={data?.after[after]} onRestart={restart} />}
       </motion.div>
-      {falsePer10k != null && <p className="mt-3 text-center text-[15px] leading-snug text-ink-2 lg:hidden">Ложных предупреждений: около {Math.round(falsePer10k)} на 10 тыс. честных переводов</p>}
+      {falsePer10k != null && <p className="mt-3 text-center text-[15px] leading-snug text-ink-2 phone-short:mt-2 phone-short:text-[14px] lg:hidden">Ложных предупреждений: около {Math.round(falsePer10k)} на 10 тыс. честных переводов</p>}
       <span className="mb-auto lg:hidden" aria-hidden />
     </div>
   )
@@ -120,31 +120,31 @@ function Warning({ c, level, primary, onPress }: { c: ClientCase; level: ClientL
   const risk = Math.round(Math.min(1, Math.max(0, c.risk.score)) * 100)
   return (
     <div className="client-swap" role="group" aria-labelledby="client-title">
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-3 flex items-center gap-3 phone-short:mt-2">
         <span className="alert-chip shrink-0" aria-hidden>{level === 'blocked' ? <Lock size={20} strokeWidth={2} /> : <ShieldAlert size={20} strokeWidth={2} />}</span>
         <h2 id="client-title" className="text-[22px] font-normal leading-tight tracking-[-0.02em] lg:text-[24px] tight:lg:text-[22px]">{c.screen.title}</h2>
       </div>
-      <div className="num-prop mt-4 text-[40px] font-light leading-none tracking-[-0.03em] lg:text-[48px] tight:lg:text-[40px]">{plainKzt(c.transfer.amount)}</div>
+      <div className="num-prop mt-4 text-[40px] phone-short:mt-3 phone-short:text-[36px] font-light leading-none tracking-[-0.03em] lg:text-[48px] tight:lg:text-[40px]">{plainKzt(c.transfer.amount)}</div>
       {c.reasons.length > 0 && (
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-4 space-y-2 phone-short:mt-3">
           {c.reasons.slice(0, 3).map((r, i) => {
             const I = ICON[r.key] ?? ShieldAlert
             return (
               <li key={r.key + i} className="client-reason flex gap-2.5" style={{ animationDelay: `${80 + i * 60}ms` }}>
                 <I size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-gold-ink" aria-hidden />
-                <span className="text-[16px] leading-snug text-ink-2">{r.text}</span>
+                <span className="text-[16px] leading-snug text-ink-2 phone-short:text-[15px]">{r.text}</span>
               </li>
             )
           })}
         </ul>
       )}
       {risk > 0 && (
-        <div className="mt-5" role="img" aria-label={`Риск перевода ${risk} из 100`}>
+        <div className="mt-5 phone-short:mt-4" role="img" aria-label={`Риск перевода ${risk} из 100`}>
           <div className="flex items-baseline justify-between text-[15px]"><span className="text-ink-2">Риск</span><span className="text-[18px] font-medium text-leak">{risk}%</span></div>
           <div className="risk-track mt-2"><span className="risk-dot" style={{ left: `${Math.max(3, Math.min(97, risk))}%` }} /></div>
         </div>
       )}
-      <div className="mt-5 rounded-[20px] bg-white/[0.035] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+      <div className="mt-5 rounded-[20px] bg-white/[0.035] p-3 phone-short:mt-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
         <div className="flex items-center gap-2 px-1 text-[15px] text-ink-2"><Sparkles size={16} strokeWidth={1.75} className="text-stop" aria-hidden />Рекомендации ИИ</div>
         <div className="client-row mt-2.5 flex gap-2 max-sm:flex-col">
           {main.map((b) => (
@@ -154,7 +154,7 @@ function Warning({ c, level, primary, onPress }: { c: ClientCase; level: ClientL
           ))}
         </div>
       </div>
-      {quiet.map((b) => <button key={b.id} className="client-link mx-auto mt-2 block" onClick={() => onPress(b)}>{b.label}</button>)}
+      {quiet.map((b) => <button key={b.id} className="client-link mx-auto mt-2 block phone-short:mt-1" onClick={() => onPress(b)}>{b.label}</button>)}
     </div>
   )
 }

@@ -9,6 +9,11 @@
 @custom-variant tight (@media (max-height: 820px));
 /* ноутбук 900-1000 px по высоте: в ленте шага «Защита» две строки вместо трёх, чтобы панель шла без прокрутки */
 @custom-variant mid (@media (min-width: 1024px) and (max-height: 1000px));
+/* телефон с экраном до 820 px (375x812): экран клиента вместе со строкой про ложные предупреждения помещается над главной кнопкой */
+@custom-variant phone-short (@media (max-width: 1023px) and (max-height: 820px));
+
+/* высота закреплённой главной кнопки на телефоне: 12 + 48 + 12 + грань 1 px и нижняя безопасная зона */
+:root { --bar-h: calc(73px + env(safe-area-inset-bottom, 0px)); }
 
 /* Fraud Twin: цвет только по смыслу: leak = выведено, stop = остановлено, money = деньги в пути.
    v11, 23.11.2026: палитра референсов пользователя вместо BCC (решение пользователя: «тот цвет, который как на референсах»).
@@ -76,6 +81,8 @@ body {
   text-rendering: optimizeLegibility;
 }
 ::selection { background: #6d3cf5; color: #fff; }
+/* v19: полосы прокрутки в палитре, а не системные серые */
+* { scrollbar-width: thin; scrollbar-color: #3d2d78 transparent; }
 :focus-visible { outline: 3px solid var(--color-stop); outline-offset: 2px; border-radius: 8px; }
 .ctl-main:focus-visible { outline-color: var(--color-champagne); }
 .scene :focus-visible, .chrome :focus-visible { outline-color: var(--color-stop-scene); }
@@ -110,6 +117,8 @@ p { text-wrap: pretty; }
 
 /* Вход: текст слева поверх живой сцены, затемнение только под текстом */
 .intro { background: linear-gradient(180deg, rgba(8, 8, 21, 0.5) 0%, rgba(8, 8, 21, 0.9) 34%, rgba(8, 8, 21, 0.97) 60%); }
+/* v19, телефон: подписи сцены не просвечивают сквозь текст входа */
+@media (max-width: 1023px) { .intro { background: linear-gradient(180deg, rgba(8, 8, 21, 0.6) 0%, #080815 14%); } }
 @media (min-width: 1024px) {
   .intro { background: linear-gradient(90deg, rgba(8, 8, 21, 0.96) 0%, rgba(8, 8, 21, 0.9) 30%, rgba(8, 8, 21, 0.55) 46%, rgba(8, 8, 21, 0) 62%); }
 }
@@ -124,9 +133,8 @@ p { text-wrap: pretty; }
 
 /* ---------- Акцент референсов: двухтоновый заголовок как «Crypto» у HexaCoin, светлее оригинала #a008e0 ради контраста ---------- */
 .gold-text {
-  /* низ #a855f7: 5,0:1 на #080815 (у оригинала #a008e0 только 3,4:1) */
-  background: linear-gradient(180deg, #d2adff 8%, #bb7dff 50%, #a855f7 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+  /* v19: сплошной цвет вместо градиента в буквах, как слово Twin в знаке; #bb7dff даёт 7:1 на #080815 */
+  color: #bb7dff;
 }
 /* светящаяся нить по низу шапки: индиго -> фиолет -> маджента, гаснет к краям */
 .gold-rule {
@@ -135,8 +143,6 @@ p { text-wrap: pretty; }
 }
 /* разделитель на листе */
 .gold-hr { border-top: 1px solid transparent; border-image: linear-gradient(90deg, #c39bff, #9000f8 45%, #6d3cf5 80%, #b9a4f0) 1; }
-/* кант панели: тонкая фиолетовая грань слева, на стыке со сценой */
-@media (min-width: 1024px) { .panel-kant { box-shadow: inset 1px 0 0 #6a4bc8, inset 3px 0 0 rgba(144, 0, 248, 0.18); } }
 /* активный шаг: подсвеченная пилюля на стекле, фиолетовое свечение снизу */
 .seg-gold {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(144, 0, 248, 0.2));
@@ -280,7 +286,8 @@ p { text-wrap: pretty; }
 
 /* ---------- v15: лента переводов, «Как устроено» ---------- */
 /* большой лист поверх двойника: плотное тёмное стекло, как подпись автопоказа */
-.sheet { border-radius: 26px; background: linear-gradient(180deg, rgba(26, 22, 64, 0.97), rgba(10, 9, 26, 0.98)); box-shadow: var(--shadow-lift), 0 40px 80px -30px rgba(0, 0, 0, 0.9), 0 0 80px -30px rgba(144, 0, 248, 0.45); }
+/* v19: лист непрозрачный, текст входа под ним больше не просвечивает */
+.sheet { border-radius: 26px; background: linear-gradient(180deg, #1a1640, #0a091a); box-shadow: var(--shadow-lift), 0 40px 80px -30px rgba(0, 0, 0, 0.9), 0 0 80px -30px rgba(144, 0, 248, 0.45); }
 .sheet :focus-visible { outline-color: var(--color-stop-scene); }
 /* текстовая кнопка-ссылка: акцентом, со стрелкой */
 .link-btn { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; white-space: nowrap; font-size: 15px; font-weight: 600; color: var(--color-gold-ink); transition: color 120ms var(--ease-out); }

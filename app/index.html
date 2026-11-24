@@ -17,7 +17,7 @@
     <style>
       html, body { margin: 0; background: #080815; }
       .boot { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: radial-gradient(60% 50% at 20% 0%, rgba(110, 60, 245, 0.22), transparent 70%), #080815; color: #a9a4c9; font: 400 18px/1.4 Montserrat, system-ui, -apple-system, 'Segoe UI', sans-serif; text-align: center; }
-      .boot b { display: block; font-weight: 300; font-size: 34px; letter-spacing: -0.02em; color: #f1effa; }
+      .boot b { display: block; font-weight: 600; font-size: 30px; letter-spacing: -0.02em; color: #f1effa; }
       .boot i { font-style: normal; color: #c39bff; }
       .boot p { margin: 10px 0 18px; }
       .boot span { display: block; width: 168px; height: 3px; margin: 0 auto; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; position: relative; }
@@ -25,8 +25,9 @@
       @keyframes boot { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
       @media (prefers-reduced-motion: reduce) { .boot span::after { animation: none; width: 100%; opacity: 0.5; } }
     </style>
-    <!-- знак Fraud Twin: два ромба-близнеца, палитра v12 -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'><rect x='4.5' y='7.5' width='12' height='12' rx='2' transform='rotate(45 10.5 13.5)' fill='none' stroke='%23c48bff' stroke-width='2'/><rect x='13.5' y='10.5' width='12' height='12' rx='2' transform='rotate(45 19.5 16.5)' fill='%239000f8'/></svg>" />
+    <!-- знак Fraud Twin (v19): буква F и её близнец, файлы в public/ -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   </head>
   <body>
     <div id="root"><div class="boot" role="status"><div><b>Fraud <i>Twin</i></b><p>Строим двойник банка...</p><span aria-hidden="true"></span></div></div></div>

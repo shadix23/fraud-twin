@@ -178,14 +178,14 @@ export function FeedDialog({ open, tab, setTab, onClose, sc, log, honest, thr, m
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-40 bg-[rgba(4,4,12,0.72)] transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
+        <Dialog.Backdrop className="fixed inset-0 z-40 bg-[rgba(4,4,12,0.84)] transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
         <Dialog.Popup className="sheet fixed inset-2 z-50 mx-auto flex max-w-[1180px] flex-col outline-none sm:inset-x-5 sm:inset-y-6 lg:inset-y-10
           transition-[opacity,transform] duration-200 ease-[var(--ease-out)] data-[starting-style]:translate-y-2 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" data-feed-dialog>
           <div className="flex items-start gap-4 px-5 pb-3 pt-5 sm:px-8 sm:pt-6">
             <div className="min-w-0">
               <Dialog.Title className="text-[26px] font-head leading-tight tracking-head">Переводы</Dialog.Title>
               <Dialog.Description className="mt-1 text-[15px] leading-snug text-ink-2">
-                {measure}. {hasRisk ? <>Риск ставит модель по картам отправителя и получателя за сутки до перевода, рабочий порог {dec(Math.round(thr * 100))}%.</> : 'Риск по переводам появится после пересборки прогонов.'}
+                {measure}. {hasRisk ? <>Риск ставит модель, порог {dec(Math.round(thr * 100))}%.</> : 'Риск по переводам появится после пересборки прогонов.'}
               </Dialog.Description>
             </div>
             <Dialog.Close className="ctl ctl-quiet ml-auto !h-11 !w-11 shrink-0 !px-0" aria-label="Закрыть"><X size={20} strokeWidth={1.5} /></Dialog.Close>

@@ -345,15 +345,11 @@ export default function App() {
   const holeRuns = hole?.scenario.runs
 
   return (
-    <div className={`app-glow app-h relative isolate flex flex-col bg-scene text-ink lg:h-screen lg:overflow-hidden lg:pb-0 ${intro ? '' : 'pb-[73px]'}`}>
+    <div className={`app-glow app-h relative isolate flex flex-col bg-scene text-ink lg:h-screen lg:overflow-hidden lg:pb-0 ${intro ? '' : 'pb-(--bar-h)'}`}>
       <header className="chrome z-30 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/[0.06] px-4 py-2 text-ivory lg:h-16 lg:flex-nowrap lg:px-6 lg:py-0">
-        <div className="flex min-w-0 items-center gap-3 leading-tight">
+        <div className="flex min-w-0 items-center gap-2.5">
           <button className="-m-1 shrink-0 rounded-xl p-1" onClick={goHome} aria-label="Fraud Twin: на вход" title="На вход"><BrandMark /></button>
-          <div className="min-w-0">
-            <h1 className="text-[22px] font-light leading-tight tracking-[-0.02em]">Fraud <span className="gold-text font-normal">Twin</span></h1>
-            {/* на телефоне пометка живёт под знаком: шапка в две строки вместо четырёх */}
-            <p className="flex items-center gap-1.5 whitespace-nowrap text-[14px] leading-tight text-mist lg:hidden"><span className="h-1.5 w-1.5 rounded-full bg-stop-scene shadow-[0_0_8px_#1fcfae]" aria-hidden />Синтетический банк</p>
-          </div>
+          <h1 className="whitespace-nowrap text-[21px] font-semibold leading-none tracking-[-0.02em]">Fraud <span className="text-gold-ink">Twin</span></h1>
         </div>
         <Segments step={step} hasHole={!!hole && !searching} busy={searching} locked={guided} onPick={goStep} />
         <div className="flex items-center gap-x-2 max-lg:ml-auto">
@@ -399,7 +395,7 @@ export default function App() {
             {step === 2 && <HoleDiff data={hole} searching={searching} />}
             {step === 3 && holeRuns && <>
               <div className="space-y-2">
-                <Measure on={model} set={(v) => toggleMeasure('model', v)} hotkey="1" title="Модель на графе переводов" hint="смотрит на связи карты получателя: кто ей переводит и как быстро деньги уходят дальше" />
+                <Measure on={model} set={(v) => toggleMeasure('model', v)} hotkey="1" title="Модель на графе переводов" hint="смотрит на связи карты, а не на один перевод" />
                 <Measure on={hold} set={(v) => toggleMeasure('hold', v)} hotkey="2" title="Задержка первого перевода" note="сценарий, в РК для переводов не действует" />
               </div>
               <FeedPanel sc={sc} log={log} honest={bank.honest_feed?.[rk]} t={t} all={phase === 'done' || phase === 'idle'} thr={thr}
@@ -408,7 +404,7 @@ export default function App() {
             </>}
             {step === 4 && <ClientPrice check={client} />}
           </div>
-          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/[0.06] bg-scene/85 px-4 py-3 backdrop-blur-lg lg:static lg:z-10 lg:border-0 lg:bg-transparent lg:px-8 lg:py-5 lg:backdrop-blur-none short:px-6 short:py-3">
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/[0.06] bg-scene/85 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur-lg lg:static lg:z-10 lg:border-0 lg:bg-transparent lg:px-8 lg:py-5 lg:backdrop-blur-none short:px-6 short:py-3">
             <button ref={mainBtn} className="ctl ctl-main w-full !justify-between whitespace-nowrap !px-6 !text-[18px] max-sm:!px-5 max-sm:!text-[16px]" onClick={main.on} disabled={main.disabled} aria-keyshortcuts="ArrowRight">
               {main.label}
               <ArrowRight size={20} strokeWidth={1.75} className="next" aria-hidden />
@@ -446,17 +442,14 @@ const MEASURE_RU: Record<string, string> = {
   hold: 'Найденная атака, включена задержка первого перевода (сценарий)', model_hold: 'Найденная атака, включены модель и задержка первого перевода (сценарий)',
 }
 
-// Профиль банка в шапке: тот же движок под другой банк одним выбором. Над названием пометка «Синтетический банк»
+// Профиль банка в шапке: тот же движок под другой банк одним выбором (v19: без пометки над названием)
 function BankSelect({ bank, preset, disabled, onPick }: { bank: Bank; preset: string | null; disabled: boolean; onPick: (id: string) => void }) {
-  const items = [...bank.calib_presets.map((p) => ({ value: p.id, label: p.name, note: p.note })), { value: 'custom', label: 'Свой профиль', note: 'ползунки калибровки, агрегаты вместо данных клиентов' }]
+  const items = [...bank.calib_presets.map((p) => ({ value: p.id, label: p.name, note: p.note })), { value: 'custom', label: 'Свой профиль', note: 'свои агрегаты ползунками' }]
   return (
     <Select.Root items={items} value={preset ?? 'custom'} onValueChange={(v) => v && onPick(v as string)} disabled={disabled}>
-      <Select.Trigger aria-label="Профиль банка" className="ctl ctl-scene !justify-between !gap-3 !px-4 text-left data-[disabled]:opacity-45 max-sm:w-12 max-sm:!justify-center max-sm:!px-0">
-        <Landmark size={18} strokeWidth={1.5} className="shrink-0 sm:hidden" aria-hidden />
-        <span className="min-w-0 leading-tight max-sm:hidden">
-          <span className="flex items-center gap-1.5 whitespace-nowrap text-[14px] font-normal text-mist max-lg:hidden"><span className="h-1.5 w-1.5 rounded-full bg-stop-scene shadow-[0_0_8px_#1fcfae]" aria-hidden />Синтетический банк</span>
-          <Select.Value className="block whitespace-nowrap text-[16px] font-medium" />
-        </span>
+      <Select.Trigger aria-label="Профиль банка" className="ctl ctl-scene !justify-between !gap-2.5 !px-4 text-left data-[disabled]:opacity-45 max-sm:w-12 max-sm:!justify-center max-sm:!px-0">
+        <Landmark size={18} strokeWidth={1.5} className="shrink-0 text-mist" aria-hidden />
+        <Select.Value className="block whitespace-nowrap text-[16px] font-medium max-sm:hidden" />
         <Select.Icon className="shrink-0 max-sm:hidden"><ChevronDown size={18} strokeWidth={1.5} /></Select.Icon>
       </Select.Trigger>
       <Select.Portal>
@@ -501,17 +494,17 @@ function Segments({ step, hasHole, busy, locked, onPick }: { step: Step; hasHole
   )
 }
 
-// знак Fraud Twin: два ромба-близнеца, градиент лаванда -> фиолет -> индиго (палитра референсов, v11)
+// знак Fraud Twin (v19): буква F и её близнец, повёрнутый на 180°. Зазор между перекладинами - дыра. Тот же знак в public/logo-mark.svg и favicon.svg
 function BrandMark() {
   return (
-    <svg width="34" height="34" viewBox="0 0 30 30" className="shrink-0" aria-hidden>
+    <svg width="30" height="30" viewBox="0 0 32 32" className="shrink-0" aria-hidden>
       <defs>
-        <linearGradient id="ft-gold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#e6d6ff" /><stop offset="0.35" stopColor="#c48bff" /><stop offset="0.62" stopColor="#9000f8" /><stop offset="1" stopColor="#4361ee" />
+        <linearGradient id="ft-g" gradientUnits="userSpaceOnUse" x1="4" y1="4" x2="20" y2="28">
+          <stop offset="0" stopColor="#4f7bff" /><stop offset="0.5" stopColor="#6d3cf5" /><stop offset="1" stopColor="#9000f8" />
         </linearGradient>
       </defs>
-      <rect x="4.5" y="7.5" width="12" height="12" rx="2" transform="rotate(45 10.5 13.5)" fill="none" stroke="url(#ft-gold)" strokeWidth="1.8" />
-      <rect x="13.5" y="10.5" width="12" height="12" rx="2" transform="rotate(45 19.5 16.5)" fill="url(#ft-gold)" />
+      <g fill="url(#ft-g)"><rect x="4" y="4" width="5" height="24" rx="1.3" /><rect x="4" y="4" width="16" height="5" rx="1.3" /><rect x="4" y="13.5" width="10" height="5" rx="1.3" /></g>
+      <g fill="#c39bff"><rect x="23" y="4" width="5" height="24" rx="1.3" /><rect x="12" y="23" width="16" height="5" rx="1.3" /><rect x="18" y="13.5" width="10" height="5" rx="1.3" /></g>
     </svg>
   )
 }
