@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://fraud-twin.vercel.app"><img src="https://img.shields.io/badge/%D0%A1%D0%B0%D0%B9%D1%82-fraud--twin.vercel.app-4334BC?style=for-the-badge" alt="Сайт"></a>
-  <a href="https://shadix23.github.io/fraud-twin/pitch/"><img src="https://img.shields.io/badge/%D0%9F%D1%80%D0%B5%D0%B7%D0%B5%D0%BD%D1%82%D0%B0%D1%86%D0%B8%D1%8F-GitHub_Pages-26262B?style=for-the-badge" alt="Презентация"></a>
-  <a href="https://youtu.be/tWMc5O5AH8Q"><img src="https://img.shields.io/badge/%D0%9F%D1%80%D0%BE%D0%BC%D0%BE-30_%D1%81_%D0%BD%D0%B0_YouTube-FF6B5B?style=for-the-badge" alt="Промо"></a>
+  <a href="https://shadix23.github.io/fraud-twin/pitch/"><img src="https://img.shields.io/badge/%D0%9F%D1%80%D0%B5%D0%B7%D0%B5%D0%BD%D1%82%D0%B0%D1%86%D0%B8%D1%8F-26262B?style=for-the-badge" alt="Презентация"></a>
+  <a href="https://youtu.be/tWMc5O5AH8Q"><img src="https://img.shields.io/badge/%D0%9F%D1%80%D0%BE%D0%BC%D0%BE_30_%D1%81-FF6B5B?style=for-the-badge" alt="Промо"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/%D0%9B%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-MIT-0D663F?style=for-the-badge" alt="Лицензия MIT"></a>
 </p>
 
