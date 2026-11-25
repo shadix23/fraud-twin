@@ -1,4 +1,6 @@
 import { ArrowDown, ArrowUp } from 'lucide-react'
+import { motion } from 'motion/react'
+import { dur, ease, spring } from './motion'
 import type { Fallback, RuleChange, RuleMeta, RuleSet } from './data'
 import { useLang } from './i18n'
 import { num } from './format'
@@ -62,7 +64,10 @@ export function Rounds({ rounds, meta }: { rounds: Round[]; meta: RuleMeta[] }) 
           const atLeast = r.atLeast && r.pct < 99.95 // «не меньше 100%» не пишем
           const onProf = !r.base && !r.vsModel && r.asked.length && r.profilePct != null ? t.rounds.onProfile(pctText(r.profilePct, lang)) : null // правило в первой строке, значение во второй: порог, который назвали в зале, не обрезается
           return (
-            <li key={r.n} className={`${cols} min-h-[34px] py-1 text-[15px] tabular-nums short:min-h-8 ${shown.length === 3 && k === 1 ? 'mid:hidden' : ''}`} data-round={r.n}
+            // моушн-бриф 6.2: новая строка проявляется со сдвигом x -8 -> 0 за 240 мс, остальные переезжают через layout
+            <motion.li key={r.n} layout="position" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ opacity: { duration: dur.fade / 1000, ease: ease.out }, x: { duration: dur.fade / 1000, ease: ease.out }, layout: spring.ui }}
+              className={`${cols} min-h-[34px] py-1 text-[15px] tabular-nums short:min-h-8 ${shown.length === 3 && k === 1 ? 'mid:hidden' : ''}`} data-round={r.n}
               aria-label={`${t.rounds.round(r.n)}: ${words.join(', ') || t.rounds.profile}. ${atLeast ? t.rounds.atLeast + ' ' : ''}${pctText(r.pct, lang)}% ${t.rounds.withdrawn}${onProf ? ` (${onProf})` : ''}${r.honest != null ? `, ${num(r.honest, lang)} ${t.rounds.honest}` : ''}${r.source === 'ready' ? `, ${t.rounds.ready}` : ''}`}>
               <span className="text-[14px] font-medium text-ink-mute" aria-hidden>{r.n}</span>
               <span className="min-w-0 leading-tight" aria-hidden>
@@ -74,7 +79,7 @@ export function Rounds({ rounds, meta }: { rounds: Round[]; meta: RuleMeta[] }) 
               </span>
               <span className="flex items-center justify-end gap-1" aria-hidden><b className="font-medium text-leak" title={atLeast ? `${t.rounds.atLeast}, ${t.rounds.colW}` : t.rounds.colW}>{atLeast ? '≥' : ''}{pctText(r.pct, lang)}%</b><Delta cur={r.pct} prev={prev?.pct} bad="text-leak" /></span>
               <span className="flex items-center justify-end gap-1" aria-hidden>{r.honest != null ? <><b className={`font-medium ${k === 0 && prev && r.honest > (prev.honest ?? 0) + 0.05 ? 'text-warn' : 'text-ink-2'}`} title={t.rounds.honest}>{num(r.honest, lang)}</b><Delta cur={r.honest} prev={prev?.honest} bad="text-warn" /></> : <span className="text-ink-3">-</span>}</span>
-            </li>
+            </motion.li>
           )
         })}
       </ol>

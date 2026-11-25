@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
+import NumberFlow from '@number-flow/react'
 import { useLang } from './i18n'
 import { intl, num } from './format'
 
@@ -109,24 +110,26 @@ export function HonestField({ per10k, onFeed }: { per10k: number; onFeed: () => 
 }
 
 /** Мера: свой тумблер, имя, цена для честных справа (на сколько задержек на 10 тыс. больше), пометка второй строкой */
-export function MeasureRow({ on, set, name, note, hint, price, hotkey, locked, big }: {
+export function MeasureRow({ on, set, name, note, hint, price, hotkey, locked, big, delay }: {
   on: boolean; set: (v: boolean) => void; name: string; note?: string; hint?: string; price: number | null; hotkey: string; locked?: boolean; big?: boolean
+  delay?: number // моушн-бриф 6.3: строки плиты мер только проявляются, шаг 70 мс
 }) {
   const { t, lang } = useLang()
   const sign = price == null ? '' : price < 0 ? '−' : '+'
   const p = price == null ? '' : `${sign}${num(Math.abs(price), lang)}`
   // v23 (макет 03-defense): крупная строка, тумблер 56x32 в зелёном тоне, цена 34 px справа (включена - зелёная, выключена - серая)
   if (big) return (
-    <div data-measure className={`measure-lg grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 lg:gap-x-6 ${locked ? '' : 'cursor-pointer'}`}
+    <div data-measure className={`measure-lg grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 lg:gap-x-6 ${locked ? '' : 'cursor-pointer'} ${delay != null ? 'fade-d' : ''}`}
+      style={delay != null ? { ['--d' as string]: `${delay}ms` } : undefined}
       onClick={(e) => { if (!locked && !(e.target as HTMLElement).closest('[role=switch]')) set(!on) }}>
       <button type="button" role="switch" aria-checked={on} aria-label={t.defense.switchAria(name)} aria-keyshortcuts={hotkey} disabled={locked}
         className="switch-lg disabled:opacity-70" onClick={() => set(!on)} />
       <span className="min-w-0">
-        <span className={`block text-[22px] font-semibold leading-tight tracking-[-0.4px] max-lg:text-[17px] ${on ? 'text-ink' : 'text-ink-3'}`}>{name}</span>
+        <span className={`measure-name block text-[22px] font-semibold leading-tight tracking-[-0.4px] max-lg:text-[17px] ${on ? 'text-ink' : 'text-ink-3'}`}>{name}</span>
         {(hint || note) && <span className="mt-1 block text-[15px] leading-snug text-ink-3 max-lg:text-[14px]">{hint ?? note}</span>}
         {hint && note && <span className="mt-0.5 block text-[15px] leading-snug text-ink-3">{note}</span>}
       </span>
-      <span className={`text-right text-[34px] font-medium leading-none tracking-[-1.2px] tabular-nums max-lg:text-[22px] max-lg:tracking-[-0.5px] ${on ? 'text-stop' : 'text-ink-mute'}`} title={t.defense.priceTitle} aria-label={price != null ? t.defense.priceAria(p) : undefined}>
+      <span className={`measure-price text-right text-[34px] font-medium leading-none tracking-[-1.2px] tabular-nums max-lg:text-[22px] max-lg:tracking-[-0.5px] ${on ? 'text-stop' : 'text-ink-mute'}`} title={t.defense.priceTitle} aria-label={price != null ? t.defense.priceAria(p) : undefined}>
         {p}
       </span>
     </div>
@@ -188,18 +191,30 @@ export function HonestPlate({ per10k, onFeed, className = '' }: { per10k: number
   const green = per10k > 0 ? Math.min(DOTS, Math.ceil(per10k / 10)) : 0
   const rank = dotRank()
   const on = new Set(rank.slice(0, green))
+  // моушн-бриф 6.3: следствия тумблера волной. Плитка сразу, число поля через 80 мс, новые точки с 160 мс по одной (шаг 30 мс).
+  // Задержка точки запоминается при её появлении, поэтому повторный рендер не снимает класс и не обрывает анимацию; точки первого показа без анимации
+  const born = useRef<Map<number, number> | null>(null)
+  if (!born.current) born.current = new Map([...on].map((i) => [i, -1]))
+  for (const i of [...born.current.keys()]) if (!on.has(i)) born.current.delete(i)
+  let fresh = 0
+  for (const i of on) if (!born.current.has(i)) born.current.set(i, 160 + 30 * Math.min(30, fresh++))
   const r = Math.max(1.8, step * 0.3)
   const v = num(per10k, lang)
+  const [pre, post] = t.v22.heldOf('\u0000').split('\u0000')
+  const late = { duration: 900, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', delay: 80 }
   return (
     <section className={`plate flex flex-col ${className}`} data-honest-field aria-label={t.defense.fieldCaps}>
       <h3 className="plate-title">{t.v22.fieldTitle}</h3>
-      <p className="mt-1.5 text-[15px] tabular-nums text-ink-3" data-field-count>{t.v22.heldOf(v)}</p>
+      <p className="mt-1.5 text-[15px] tabular-nums text-ink-3" data-field-count aria-label={t.v22.heldOf(v)}>
+        <span aria-hidden>{pre}<NumberFlow value={Math.round(per10k * 10) / 10} locales={lang === 'en' ? 'en-US' : 'ru-RU'} format={{ maximumFractionDigits: 1 }}
+          transformTiming={late} spinTiming={late} />{post}</span></p>
       <div ref={box} className="relative mt-4 min-h-[120px] flex-1">
         <svg width={cols * step} height={rows * step} className="absolute left-0 top-0 block max-h-full" role="img" aria-label={t.defense.fieldAria(v)}>
           {Array.from({ length: DOTS }, (_, i) => on.has(i) ? null : <circle key={i} cx={(i % cols) * step + step / 2} cy={Math.floor(i / cols) * step + step / 2} r={r} fill="#8E8E97" fillOpacity={0.45} />)}
           {[...on].map((i) => {
             const cx = (i % cols) * step + step / 2, cy = Math.floor(i / cols) * step + step / 2
-            return <g key={i} className={reduced() ? undefined : 'dot-in'}><circle cx={cx} cy={cy} r={9} fill="#15803D" fillOpacity={0.18} /><circle cx={cx} cy={cy} r={r + 0.6} fill="#15803D" /></g>
+            const at = born.current?.get(i) ?? -1
+            return <g key={i} className={reduced() || at < 0 ? undefined : 'dot-in'} style={at >= 0 ? { animationDelay: `${at}ms` } : undefined}><circle cx={cx} cy={cy} r={9} fill="#15803D" fillOpacity={0.18} /><circle cx={cx} cy={cy} r={r + 0.6} fill="#15803D" /></g>
           })}
         </svg>
       </div>
@@ -213,12 +228,28 @@ export function HonestPlate({ per10k, onFeed, className = '' }: { per10k: number
   )
 }
 
+let aiSeen: number | null = null // последнее показанное число ИИ: при повторном входе на шаг не считаем заново
 /** Тёмная плита «ИИ ищет обход уже нашей модели»: до поиска - приглашение с кнопкой, после - живое число раунда */
 export function AiPlate({ result, onRun, busy, className = '' }: { result: { pct: number; withdrawn: string; atLeast: boolean } | null; onRun: () => void; busy?: boolean; className?: string }) {
   const { t, lang } = useLang()
   const V = t.v22
+  // моушн-бриф 6.3: новое число ИИ считает от 0 вверх, затем разгорается красное свечение (слой opacity) и остаётся.
+  // Раунд идёт на шаге «Дыра», поэтому новый результат обычно встречает плиту при входе: считаем, когда плита села (650 мс).
+  // Уже показанный результат стоит сразу: считает только то, что изменилось
+  const target = result && result.pct > 0.05 ? result.pct : null
+  const [shown, setShown] = useState<number>(() => (target != null && target === aiSeen ? target : 0))
+  const counted = useRef(false)
+  const mountedAt = useRef(performance.now())
+  useEffect(() => {
+    if (target == null || target === shown) return
+    counted.current = true
+    aiSeen = target
+    const wait = Math.max(0, 650 - (performance.now() - mountedAt.current))
+    const id = setTimeout(() => setShown(target), wait)
+    return () => clearTimeout(id)
+  }, [target]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <section className={`tile ai-plate flex flex-col text-white ${className}`} data-tone="report" aria-label={`${V.aiTitle[0]} ${V.aiTitle[1]}`} data-ai-plate={result ? 'result' : 'invite'}>
+    <section className={`tile ai-plate ai-in flex flex-col text-white ${className}`} data-tone="report" aria-label={`${V.aiTitle[0]} ${V.aiTitle[1]}`} data-ai-plate={result ? 'result' : 'invite'}>
       <span aria-hidden className="tile-bg" data-on="" />
       <span aria-hidden className="tile-sheet tile-sheet-a" />
       <span aria-hidden className="tile-sheet tile-sheet-b" />
@@ -226,7 +257,11 @@ export function AiPlate({ result, onRun, busy, className = '' }: { result: { pct
       {result ? (
         result.pct > 0.05 ? <>
           {result.atLeast && <p className="mt-auto text-[18px] font-medium text-[#FFB4A8] lg:mt-[clamp(16px,4vh,44px)]">{V.atLeast}</p>}
-          <p className={`ai-num ${result.atLeast ? '' : 'mt-auto lg:mt-[clamp(16px,4vh,44px)]'}`} data-ai-pct>{num(result.pct, lang)}%</p>
+          <p className={`ai-num ${result.atLeast ? '' : 'mt-auto lg:mt-[clamp(16px,4vh,44px)]'}`} data-ai-pct data-value={num(result.pct, lang)}>
+            <NumberFlow value={shown} locales={lang === 'en' ? 'en-US' : 'ru-RU'} suffix="%" format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
+              transformTiming={{ duration: 900, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }} spinTiming={{ duration: 900, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
+            {shown === target && <span aria-hidden className="ai-glow" style={{ animationDelay: counted.current ? '900ms' : '0ms' }}>{num(result.pct, lang)}%</span>}
+          </p>
           <p className="mt-auto max-w-[320px] pt-3 text-[15px] leading-snug text-white/80">{V.aiAgain(result.withdrawn)[0]}<br />{V.aiAgain(result.withdrawn)[1]}</p>
         </> : <p className="mt-auto max-w-[320px] text-[15px] leading-snug text-white/85">{V.aiNone}</p>
       ) : <>

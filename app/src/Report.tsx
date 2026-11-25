@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { ViewTransition, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, ChevronDown, Download, FileJson } from 'lucide-react'
 import { loadClientCheck, loadReport, type Bank, type ClientCheck, type Ctx, type Report as R, type RuleSet } from './data'
 import { intl, kzt, num } from './format'
@@ -16,10 +16,19 @@ import Economics, { econCalc, paybackText, useEcon, type Econ } from './Economic
 
 interface Props { ctx: Ctx; bank: Bank; rounds: Round[]; profile: RuleSet; modelMark?: ModelMark | null; scheme?: string; langSwitch?: ReactNode; onBack: () => void }
 
+// моушн-бриф 6.5: отчёт загружается заранее (на шаге «Клиент» и по кнопке), чтобы плита вердикта была в дереве
+// в момент перехода и браузер срастил с ней плитку шага (ViewTransition name="hero-tile")
+const repCache = new Map<string, { data: R; source: 'api' | 'json' }>()
+const repKey = (ctx: Ctx, lang: Lang) => `${lang}:${JSON.stringify(ctx)}`
+export const reportReady = (ctx: Ctx, lang: Lang) => repCache.has(repKey(ctx, lang))
+export function prefetchReport(ctx: Ctx, lang: Lang) {
+  return loadReport(ctx, lang).then((r) => { repCache.set(repKey(ctx, lang), { data: r.data, source: r.source as 'api' | 'json' }); return r })
+}
+
 export default function Report({ ctx, bank, rounds, profile, modelMark = null, scheme = 'student_crypto', langSwitch, onBack }: Props) {
   const { t, lang } = useLang()
-  const [rep, setRep] = useState<R | null>(null)
-  const [source, setSource] = useState<'api' | 'json'>('json')
+  const [rep, setRep] = useState<R | null>(() => repCache.get(repKey(ctx, lang))?.data ?? null)
+  const [source, setSource] = useState<'api' | 'json'>(() => repCache.get(repKey(ctx, lang))?.source ?? 'json')
   const [err, setErr] = useState<string | null>(null)
   // экономика для банка: входы живут здесь, чтобы строка в PDF совпадала с калькулятором
   const [econ, setEcon] = useEcon()
@@ -30,11 +39,12 @@ export default function Report({ ctx, bank, rounds, profile, modelMark = null, s
   // смена языка не прячет отчёт: прежний лист виден, пока не придёт переведённый (числа те же)
   const load = useCallback((keep = false) => {
     setErr(null); if (!keep) setRep(null)
-    loadReport(ctx, lang).then((r) => { setRep(r.data); setSource(r.source) }).catch((e) => { if (!keep) setErr(e instanceof Error ? e.message : String(e)) })
+    prefetchReport(ctx, lang).then((r) => { setRep(r.data); setSource(r.source) }).catch((e) => { if (!keep) setErr(e instanceof Error ? e.message : String(e)) })
   }, [ctx, lang])
   const loadedCtx = useRef<Ctx | null>(null)
-  useEffect(() => { load(loadedCtx.current === ctx); loadedCtx.current = ctx }, [load, ctx])
-  useEffect(() => { window.scrollTo(0, 0) }, [])
+  useEffect(() => { load(loadedCtx.current === ctx || reportReady(ctx, lang)); loadedCtx.current = ctx }, [load, ctx]) // eslint-disable-line react-hooks/exhaustive-deps
+  // до отрисовки: снимок новой страницы для перехода берётся уже с начала листа
+  useLayoutEffect(() => { window.scrollTo(0, 0) }, [])
   // имя PDF при печати берётся из заголовка вкладки
   useEffect(() => {
     if (!rep) return
@@ -60,6 +70,7 @@ export default function Report({ ctx, bank, rounds, profile, modelMark = null, s
   const pilot: string[][] = [...P.items, [P.other, P.otherText(bank.calib_presets.length || null)]]
 
   return (
+    <ViewTransition enter="page-in" exit="page-out">
     <div className="app-h relative isolate min-h-screen overflow-x-clip bg-bg px-5 pb-16 text-ink sm:px-8 lg:px-14 print:bg-white print:p-0">
       {/* v24 (макет 05-report): шапка как у двойника: знак, путь назад, язык. PDF и JSON справа от вывода */}
       <div className="no-print mx-auto flex max-w-[1328px] items-center gap-3 pt-[18px] lg:h-24 lg:pt-0">
@@ -85,7 +96,7 @@ export default function Report({ ctx, bank, rounds, profile, modelMark = null, s
         </div>
       )}
       {rep && <Sheet r={rep} bank={bank} rounds={rounds} profile={profile} robust={robust} t={t} lang={lang} date={date} modelMark={modelMark} scheme={scheme} ctx={ctx} econ={econ}
-        actions={<div className="flex shrink-0 flex-wrap gap-3 max-lg:mt-6 lg:flex-col lg:items-end">
+        actions={<div className="fade-d [--d:560ms] flex shrink-0 flex-wrap gap-3 max-lg:mt-6 lg:flex-col lg:items-end">
             <button className="ctl ctl-main rep-pdf" onClick={() => window.print()} disabled={!rep} data-pdf><Download size={18} strokeWidth={2} aria-hidden />{t.report.pdf}</button>
             <button className="ctl ctl-quiet rep-json max-sm:hidden" onClick={download} disabled={!rep} aria-label={t.report.jsonAria}><FileJson size={17} strokeWidth={1.75} aria-hidden />{t.report.json}</button>
           </div>} />}
@@ -110,6 +121,7 @@ export default function Report({ ctx, bank, rounds, profile, modelMark = null, s
         </footer>
       )}
     </div>
+    </ViewTransition>
   )
 }
 
@@ -168,9 +180,12 @@ function Sheet({ r, bank, rounds, profile, robust, t, lang, date, modelMark, sch
       <header className="break-avoid pt-8 lg:flex lg:items-start lg:justify-between lg:gap-10 lg:pt-10 print:block print:pt-0">
         <div className="min-w-0">
         <p className="t-caps hidden text-ink-3 print:mb-3 print:block">{T.caps}</p>
-        <h1 className="rep-hero max-w-[1000px]" data-rep-verdict>
+        <h1 className="rep-hero head-mask max-w-[1000px]" data-rep-verdict>
+          {/* заголовок вердикта выезжает из-под маски после перехода */}
+          <span className="rise-y block">
           {nobreak(V.repInk(s.holes_found, s.schemes))}{' '}
           <span className="text-ink-mute sm:block print:text-ink-3">{nobreak(V.repMute(bypass > 0))}</span>
+          </span>
         </h1>
         <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[16px] leading-snug text-ink-3">
           <span>{r.bank.name}, {date}. {T.twin(intl(r.bank.clients, lang), r.bank.clients, intl(r.bank.honest_tx, lang), r.bank.honest_tx)}</span>
@@ -182,17 +197,19 @@ function Sheet({ r, bank, rounds, profile, robust, t, lang, date, modelMark, sch
 
       {/* главное число на большой стеклянной плите, справа две плитки: с моделью и новый поиск против модели */}
       <div className="mt-8 grid gap-5 sm:mt-10 lg:mt-7 lg:grid-cols-[minmax(0,820fr)_minmax(0,484fr)] lg:gap-x-6" data-rep-top>
+        <ViewTransition name="hero-tile">
         <section className="plate rep-verdict break-avoid flex flex-col justify-center px-6 py-7 sm:px-11 sm:py-10 lg:px-12" aria-label={T.now}>
           {lb && <p className="text-[18px] font-medium text-leak">{V.atLeast}</p>}
           <p className="rep-big mt-2 text-leak" data-rep-main>{num(s.hole_pct, lang)}%</p>
           <p className="mt-5 max-w-[620px] text-[19px] leading-[1.4] text-ink-2 lg:text-[20px]">{V.repMain(...pair(s.hole_withdrawn, holeAtt), pct(s.lib_pct))}</p>
         </section>
+        </ViewTransition>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1 lg:gap-5">
-          <StepTile tone="defense" className="rep-side break-avoid flex flex-col justify-center px-6 py-6 sm:px-8">
+          <StepTile tone="defense" className="rep-side in-r [--x:56px] [--d:300ms] break-avoid flex flex-col justify-center px-6 py-6 sm:px-8">
             <p className="rep-mid" data-rep-model>{mod ? <Money v={mod.hole_withdrawn} flow={false} /> : '-'}</p>
             {mod && base && <p className="mt-3 max-w-[340px] text-[15px] leading-[1.35] opacity-90">{V.repModel(num(mod.delayed_per_10k, lang), num(base.delayed_per_10k, lang))}</p>}
           </StepTile>
-          <StepTile tone="report" className="rep-side break-avoid flex flex-col justify-center px-6 py-6 sm:px-8">
+          <StepTile tone="report" className="rep-side in-r [--x:56px] [--d:390ms] break-avoid flex flex-col justify-center px-6 py-6 sm:px-8">
             {lb && bypass > 0 && <p className="text-[14px] font-medium opacity-80">{V.atLeast}</p>}
             <p className="rep-mid mt-1" data-rep-again>{num(bypass > 0 ? s.rematch_pct : 0, lang)}%</p>
             <p className="mt-3 max-w-[340px] text-[15px] leading-[1.35] opacity-90">

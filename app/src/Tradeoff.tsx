@@ -51,14 +51,27 @@ function useAnchors(scheme: string, ctx: Ctx | null): Anchors | null {
 }
 
 // head: переключатель карт; с ним карта живёт в нижней широкой плите шага «Дыра» (поле слева, итог справа), без него - в отчёте
-export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = false, head }: {
-  rounds: Round[]; model: ModelMark | null; meta: RuleMeta[]; unseen: number | null; scheme: string; ctx: Ctx | null; still?: boolean; head?: ReactNode
+export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = false, head, enter = '' }: {
+  rounds: Round[]; model: ModelMark | null; meta: RuleMeta[]; unseen: number | null; scheme: string; ctx: Ctx | null; still?: boolean; head?: ReactNode; enter?: string
 }) {
   const { t, lang } = useLang()
   const T = t.tradeoff
   const anchors = useAnchors(scheme, ctx)
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
+  // моушн-бриф 6.2: точки появляются в порядке раундов с шагом 140 мс. Задержка закрепляется за точкой при первом показе:
+  // точки, пришедшие одним рендером, идут волной, новый ход позже - сразу, без ожидания старых
+  const seen = useRef(new Map<string, number>())
+  const fresh = useRef({ at: -1, n: 0 })
+  const delayOf = (key: string) => {
+    const m = seen.current
+    if (m.has(key)) return m.get(key)!
+    const now = performance.now()
+    if (now - fresh.current.at > 50) fresh.current = { at: now, n: 0 }
+    const d = fresh.current.n++ * 140
+    m.set(key, d)
+    return d
+  }
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
@@ -176,6 +189,13 @@ export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = 
   // подпись, которой не нашлось места, остаётся в итоге и в aria-label; на поле точка без подписи
   const lstyle = (k: string) => { const q = place[k]; return q ? { left: q.left, top: q.top } : { display: 'none' } }
   const dot = (p: { x: number; y: number }) => ({ transform: `translate(${px(p.x)}px, ${py(p.y)}px)` })
+  // задержки появления: ходы по порядку, модель за ними, зелёный угол последним
+  const dl: Record<string, number> = {}
+  if (anim && ready) {
+    for (const p of moves) dl[p.key] = delayOf(p.key)
+    if (mark) { dl.model = delayOf('model'); dl.corner = delayOf('corner') + 200 }
+  }
+  const dv = (k: string) => (anim ? { ['--d' as string]: `${dl[k] ?? 0}ms` } : {})
 
   const plot = (
     <div ref={box} className={`relative ${head ? 'h-[248px] lg:h-auto lg:min-h-0 lg:flex-1' : `mt-1.5 ${still ? 'h-[200px] lg:h-[290px] print:h-[200px]' : 'h-[172px] short:h-[144px]'}`}`}
@@ -194,17 +214,21 @@ export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = 
             <text x={px(v)} y={padT + H + 15} textAnchor={px(v) - padL < 8 ? 'start' : 'middle'} className="fill-ink-3 text-[11px] font-medium tabular-nums">{num(v, lang, 0)}</text>
           </g>)}
           {/* путь банка: тонкая линия между ходами, без сглаживания */}
-          {moves.length > 1 && <polyline points={moves.map((p) => `${px(p.x)},${py(p.y)}`).join(' ')} fill="none" stroke="var(--color-brand-dot)" strokeOpacity="0.45" strokeWidth="1.5" />}
+          {/* отрезок проявляется, когда обе его точки уже на месте (моушн-бриф 6.2) */}
+          {moves.slice(1).map((p, i) => { const a = moves[i]; return (
+            <line key={`${a.key}-${p.key}`} x1={px(a.x)} y1={py(a.y)} x2={px(p.x)} y2={py(p.y)} stroke="var(--color-brand-dot)" strokeOpacity="0.45" strokeWidth="1.5" strokeLinecap="round"
+              className={anim ? 'to-seg' : ''} style={anim ? { ['--d' as string]: `${Math.max(dl[a.key] ?? 0, dl[p.key] ?? 0) + 300}ms` } : undefined} />
+          ) })}
           {/* модель поднялась: пунктир от места на найденной атаке */}
           {mark && again && <line x1={px(mark.x)} y1={py(mark.y)} x2={px(again.x)} y2={py(again.y)} stroke="var(--color-leak-dot)" strokeOpacity="0.6" strokeDasharray="3 3"
             className={anim ? 'to-line' : ''} />}
         </svg>
 
         {/* угол, куда порогами не попасть: подпись появляется вместе с точкой модели */}
-        {mark && <span className="pointer-events-none absolute whitespace-nowrap text-[11px] font-medium leading-none text-stop" style={{ left: px(mark.x) + 12, top: py(0) - 18 }} data-tradeoff-corner>{T.corner}</span>}
+        {mark && <span className={`pointer-events-none absolute whitespace-nowrap text-[11px] font-medium leading-none text-stop ${anim ? 'to-zone' : ''}`} style={{ left: px(mark.x) + 12, top: py(0) - 18, ...dv('corner') }} data-tradeoff-corner>{T.corner}</span>}
 
         {moves.map((p) => (
-          <div key={p.key} className="absolute left-0 top-0" style={dot(p)} data-tradeoff-move>
+          <div key={p.key} className="absolute left-0 top-0" style={{ ...dot(p), ...dv(p.key) }} data-tradeoff-move>
             <span className={`to-dot ${anim ? 'to-pop' : ''} ${p.base ? 'bg-ink' : 'bg-brand'}`} />
             <span className={`to-label ${anim ? 'to-fade' : ''}`} style={lstyle(p.key)}>
               {p.label} <span className="tabular-nums text-ink-3">{xText(p.x)}</span>
@@ -214,7 +238,7 @@ export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = 
 
         {mark && <>
           {again && <div className="absolute left-0 top-0" style={dot(mark)} aria-hidden><span className="to-dot to-ghost" /></div>}
-          <div className={`absolute left-0 top-0 ${anim ? 'to-rise' : ''}`} style={dot({ x: again?.x ?? mark.x, y: modelY })} data-tradeoff-model={again ? 'again' : 'found'}>
+          <div className={`absolute left-0 top-0 ${anim ? 'to-rise' : ''}`} style={{ ...dot({ x: again?.x ?? mark.x, y: modelY }), ...dv('model') }} data-tradeoff-model={again ? 'again' : 'found'}>
             <span className={`to-dot ${anim ? 'to-pop' : ''} ${again ? 'bg-leak-dot' : 'bg-stop-dot'}`} />
             <span className={`to-label ${anim ? 'to-fade' : ''}`} style={lstyle('model')} key={again ? 'a' : 'f'}>
               {again ? T.rematch : T.model} <b className={`font-semibold ${again ? 'text-leak' : 'text-stop'}`}>{again?.lb && again.y < 99.95 ? '≥' : ''}{pctText(modelY, lang)}%</b>
@@ -242,7 +266,7 @@ export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = 
 
   // нижняя плита шага «Дыра»: та же высота, что у карты поиска, поле во всю ширину слева, итог колонкой справа
   if (head) return (
-    <section className="plate map-xl flex shrink-0 flex-col px-4 pb-4 pt-4 max-lg:order-5 max-lg:mt-5 sm:px-6 lg:!pl-[56px]" data-tradeoff aria-label={T.caps}>
+    <section className={`plate map-xl ${enter} flex shrink-0 flex-col px-4 pb-4 pt-4 max-lg:order-5 max-lg:mt-5 sm:px-6 lg:!pl-[56px]`} data-tradeoff aria-label={T.caps}>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
         <h2 className="sr-only">{T.caps}</h2>
         {head}

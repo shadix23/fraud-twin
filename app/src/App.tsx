@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ViewTransition, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { animate, motion, MotionConfig, useMotionValue } from 'motion/react'
 import NumberFlow from '@number-flow/react'
-import { ease, flow, numberTiming, spring } from './motion'
+import { ease, flow, numberTiming, prefersReduced, spring } from './motion'
 import { Popover } from '@base-ui/react/popover'
 import { ArrowRight, Check, Info, Landmark, Menu, Play } from 'lucide-react'
 import { DEMO_CTX, editable, hasApi, honestPrices, loadBank, loadClientCheck, loadReadyHole, isLowerBound, profilePct, type ClientCheck, runRedteam, RuleError, rulesDiff, sameRules, warmApi, type RedteamResult, type RuleErr, type RuleSet, loadScenario, runKey, type Bank, type Calib, type Ctx, type Freeze, type Redteam, type RunKey, type Scenario, type TxEvent } from './data'
@@ -13,7 +13,8 @@ import { TOUR, TourCaption, type TourId } from './Intro'
 import { EntryPlate, EntryTiles, useEntryFacts } from './Entry'
 import { LANGS, useLang, type Lang } from './i18n'
 import { Dec, STEP_TONE, StepTile } from './ui'
-import Report from './Report'
+import { Sat, StepHead } from './StepMotion'
+import Report, { prefetchReport, reportReady } from './Report'
 import Scene, { LINE_MIN, SPEED } from './Scene'
 import { SceneWordsPill, type Shown } from './Panel'
 import { AiPlate, HonestPlate, MeasureRow, MeasuresHead } from './Defense'
@@ -139,6 +140,10 @@ function Twin() {
   const [rounds, setRounds] = useState<Round[]>([])
   // вау 1: нижняя плита «Дыры» - карта поиска или карта компромисса
   const [mapTab, setMapTab] = useState<MapTab>('search')
+  // моушн-бриф 6.2: при входе на шаг плита карты въезжает справа, при смене вкладки карты сменяются кроссфейдом со сдвигом 12 px к вкладке
+  const [mapEnter, setMapEnter] = useState('in-r')
+  const pickMapTab = (v: MapTab) => { setMapEnter(v === 'tradeoff' ? 'tab-in-r' : 'tab-in-l'); setMapTab(v) }
+  useEffect(() => { if (step !== 2) setMapEnter('in-r') }, [step])
   // v21: эпоха ленты растёт при каждом сбросе раундов, поздний ответ для строки «Правила профиля» в новую ленту не попадает
   const roundsEpoch = useRef(0)
   const roundsRef = useRef<Round[]>([])
@@ -427,8 +432,20 @@ function Twin() {
     setAutoPlay(true)
   }
 
+  // моушн-бриф 6.5: переход на отчёт через ViewTransition. Отчёт берём заранее (до 450 мс), чтобы плита вердикта была в дереве и срослась с плиткой
+  const goReport = () => {
+    // в скрытой вкладке браузер отменяет View Transition с ошибкой: там страница меняется без перехода
+    const go = () => document.visibilityState === 'visible' ? startTransition(() => setPage('report')) : setPage('report')
+    if (reportReady(ctx, lang)) { go(); return }
+    let done = false
+    const once = () => { if (!done) { done = true; go() } }
+    prefetchReport(ctx, lang).then(once, once)
+    setTimeout(once, 450)
+  }
+  useEffect(() => { if (step === 4) prefetchReport(ctx, lang).catch(() => {}) }, [step, ctx, lang])
+
   const goStep = (s: number) => {
-    if (s === 5) { setPage('report'); return }
+    if (s === 5) { goReport(); return }
     if (searching) return
     if (s === 1) { setView('library'); setModel(false); setHold(false); setStep(ranLib ? 1 : 0); if (ranLib) setHeld(libHeld()) }
     // v20-fix D1: из «Атаки» обратно к дыре число на плитке берём у дыры, а не у атаки профиля, оставшееся в held
@@ -457,7 +474,7 @@ function Twin() {
     // v21 (wow-v21, п. 2): модель включена - главная кнопка ведёт на честную развязку, раунд «ИИ против модели»
     if (step === 3 && aiMain) return { label: tr.defense.aiModel, on: () => runSearch(true), disabled: !hole }
     if (step === 3) return { label: tr.main.customer, on: () => goStep(4), disabled: !hole }
-    return { label: tr.main.report, on: () => setPage('report'), disabled: false }
+    return { label: tr.main.report, on: goReport, disabled: false }
   })()
 
   // Автопоказ ведёт те же обработчики, что клавиши и кнопки. Стадия: действие -> ждём её конца -> пауза -> следующая
@@ -506,7 +523,7 @@ function Twin() {
     holeRun: () => { setStep(3); play(true) },
     defense: () => toggleMeasure('model', true),
     client: () => goStep(4),
-    report: () => { setTour(null); setPage('report') },
+    report: () => { setTour(null); goReport() },
   }
   const tourId = tour == null ? null : TOUR[tour].id
   useEffect(() => {
@@ -563,7 +580,7 @@ function Twin() {
   if (error) return <Fatal msg={error} />
   if (!bank || !sc || !run || !final) return <Splash />
   const mark = modelMark && modelMark.ep === roundsEpoch.current ? modelMark : null
-  if (page === 'report') return <Report ctx={ctx} bank={bank} rounds={rounds} profile={profile} modelMark={mark} scheme={scKey} langSwitch={<LangSwitch />} onBack={() => { setPage('twin'); history.replaceState(null, '', ' ') }} />
+  if (page === 'report') return <Report ctx={ctx} bank={bank} rounds={rounds} profile={profile} modelMark={mark} scheme={scKey} langSwitch={<LangSwitch />} onBack={() => { if (document.visibilityState === 'visible') startTransition(() => setPage('twin')); else setPage('twin'); history.replaceState(null, '', ' ') }} />
 
   // цена для честных: при своих правилах базу считает сервер вместе с поиском (honest), меры - /whatif (F5); иначе профиль банка
   const liveHole = (view === 'hole' || step === 2) && hole?.source === 'live' && hole.honest && hole.rules_changed?.length ? hole : null
@@ -613,24 +630,25 @@ function Twin() {
 
   // v22 (п. 1 CHANGES): заголовок шага в два тона вместо служебных подписей
   const limitParam = bank.rule_meta.find((m) => m.key === 'amount_limit')?.param
-  const head: readonly string[] = (() => {
+  // headId не зависит от языка: при смене языка заголовок меняет текст без выезда из-под маски
+  const [head, headId]: [readonly string[], string] = (() => {
     const V = tr.v22
-    if (step === 0) return V.fresh
-    if (step === 1) return phase === 'done' ? V.attackDone(final.chains_caught, final.chains_total, final.withdrawn_kzt > 0) : V.attackRun
+    if (step === 0) return [V.fresh, 'fresh']
+    if (step === 1) return phase === 'done' ? [V.attackDone(final.chains_caught, final.chains_total, final.withdrawn_kzt > 0), `done${final.chains_caught}`] : [V.attackRun, 'run']
     if (step === 2) {
-      if (searching) return hole?.rules?.model_on ? V.gapSearchModel : V.gapSearch
-      if (vsModel) return V.gapModel
+      if (searching) return hole?.rules?.model_on ? [V.gapSearchModel, 'sm'] : [V.gapSearch, 's']
+      if (vsModel) return [V.gapModel, 'model']
       const asked = curRound?.asked ?? []
-      if (asked.some((c) => c.param === limitParam)) return V.gapLimit
-      return asked.length ? V.gapOwn : V.gapProfile
+      if (asked.some((c) => c.param === limitParam)) return [V.gapLimit, 'limit']
+      return asked.length ? [V.gapOwn, 'own'] : [V.gapProfile, 'profile']
     }
     if (step === 3) {
-      if (vsModel) return V.gapModel
-      if (!model && !hold) return V.defenseOff
+      if (vsModel) return [V.gapModel, 'model']
+      if (!model && !hold) return [V.defenseOff, 'off']
       const d = priceOf(rk) - priceOf('base')
-      return V.defenseOn(model ? tr.defense.model : tr.defense.hold, final.withdrawn_kzt === 0, `${d >= 0 ? '+' : '-'}${pctText(Math.abs(d))}`)
+      return [V.defenseOn(model ? tr.defense.model : tr.defense.hold, final.withdrawn_kzt === 0, `${d >= 0 ? '+' : '-'}${pctText(Math.abs(d))}`), `on${model ? 'm' : ''}${hold ? 'h' : ''}${final.withdrawn_kzt === 0}`]
     }
-    return V.client
+    return [V.client, 'client']
   })()
 
   // v23: второе число «Дыры» и «Защиты» (макеты 02, 03): цена для честных с базой профиля, на «Защите» с моделью - доля на невиданных схемах
@@ -649,7 +667,7 @@ function Twin() {
 
   const pickEntry = (s: number) => {
     if (s === 1) { leaveIntro(); setStep(1); play(true) }
-    else if (s === 5) { setIntro(false); setPage('report') }
+    else if (s === 5) { setIntro(false); goReport() }
     else jump(s)
   }
   const n = Math.max(1, step)
@@ -707,6 +725,7 @@ function Twin() {
   const atk = !intro && step <= 1
 
   return (
+    <ViewTransition enter="page-in" exit="page-out">
     <div className={`app-h tone-${intro ? 'report' : STEP_TONE[step]} flex flex-col overflow-x-clip bg-bg text-ink lg:h-screen lg:overflow-hidden ${intro ? '' : 'max-lg:pb-(--bar-h)'}`}>
       <Backdrop tone={intro ? null : STEP_TONE[step]} />
       <button className="ctl ctl-main sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50" onClick={() => document.getElementById('main')?.focus()}>{tr.skip}</button>
@@ -758,8 +777,8 @@ function Twin() {
             overlay={tour != null ? <TourCaption i={tour} onStop={stopTour} /> : null} />
           {step === 2 && !intro && <>
             {mapTab === 'tradeoff' && !searching
-              ? <TradeoffMap rounds={rounds} model={mark} meta={bank.rule_meta} unseen={unseenPct} scheme={scKey} ctx={ctx} head={<MapTabs tab={mapTab} onTab={setMapTab} />} />
-              : <SearchMap s={mapState} meta={bank.rule_meta} onRetry={findHole} head={<MapTabs tab={searching ? 'search' : mapTab} onTab={(v) => { if (!searching) setMapTab(v) }} />} />}
+              ? <TradeoffMap rounds={rounds} model={mark} meta={bank.rule_meta} unseen={unseenPct} scheme={scKey} ctx={ctx} enter={mapEnter} head={<MapTabs tab={mapTab} onTab={pickMapTab} />} />
+              : <SearchMap s={mapState} meta={bank.rule_meta} onRetry={findHole} enter={mapEnter} head={<MapTabs tab={searching ? 'search' : mapTab} onTab={(v) => { if (!searching) pickMapTab(v) }} />} />}
             {/* под картой без плиты: что поменял мошенник слева, главная кнопка справа (макет 02-hole) */}
             <div className="relative z-10 flex shrink-0 items-end gap-5 max-lg:order-6 max-lg:mt-6 max-lg:px-1 lg:mt-[clamp(0px,0.9vh,8px)] lg:pl-10 lg:pr-[26px]" inert={tour != null}>
               <div className="min-w-0 flex-1">
@@ -770,18 +789,18 @@ function Twin() {
             </div>
           </>}
           {step === 3 && !intro && holeRuns && <>
-            <section className="plate plate-xl shrink-0 px-5 pb-2 pt-5 max-lg:order-5 max-lg:mt-6 lg:pb-[34px] lg:pl-9 lg:pr-[80px] lg:pt-[34px] short:pb-2 short:pt-5" aria-label={tr.v22.measures} data-measures inert={tour != null}>
+            <section className="plate plate-xl in-r shrink-0 px-5 pb-2 pt-5 max-lg:order-5 max-lg:mt-6 lg:pb-[34px] lg:pl-9 lg:pr-[80px] lg:pt-[34px] short:pb-2 short:pt-5" aria-label={tr.v22.measures} data-measures inert={tour != null}>
               <MeasuresHead big />
               <div className="divide-y divide-ink/[0.07]">
-                <MeasureRow big on={model || vsModel} locked={vsModel} set={(v) => toggleMeasure('model', v)} hotkey="1" name={tr.defense.model}
+                <MeasureRow big on={model || vsModel} locked={vsModel} delay={420} set={(v) => toggleMeasure('model', v)} hotkey="1" name={tr.defense.model}
                   hint={vsModel ? tr.defense.modelLocked : tr.defense.modelHint} price={vsModel ? null : priceDelta('model')} />
-                <MeasureRow big on={hold} set={(v) => toggleMeasure('hold', v)} hotkey="2" name={tr.defense.hold} hint={tr.defense.holdNote} price={priceDelta('hold')} />
+                <MeasureRow big delay={490} on={hold} set={(v) => toggleMeasure('hold', v)} hotkey="2" name={tr.defense.hold} hint={tr.defense.holdNote} price={priceDelta('hold')} />
               </div>
               {priceFailed && <p className="pb-2 text-[14px] leading-snug text-ink-2" data-price-note>{tr.defense.priceProfile}</p>}
             </section>
             <div className="def-row relative flex min-h-0 flex-1 flex-col gap-5 max-lg:order-6 max-lg:mt-5 lg:mt-[clamp(0px,1.1vh,10px)] lg:block">
               <HonestPlate per10k={per10k} onFeed={() => setFeed({ open: true, tab: 'honest' })}
-                className="px-5 pb-4 pt-5 lg:h-[calc(100%-clamp(16px,8.2vh,74px))] lg:w-[58.75%] lg:px-8 lg:pb-5 lg:pt-[34px] short:pt-5" />
+                className="fade-d [--d:400ms] [--dur:300ms] px-5 pb-4 pt-5 lg:h-[calc(100%-clamp(16px,8.2vh,74px))] lg:w-[58.75%] lg:px-8 lg:pb-5 lg:pt-[34px] short:pt-5" />
               {api !== 'static' && <AiPlate result={aiResult} busy={searching} onRun={() => { markModel(); runSearch(true) }}
                 className="min-h-[260px] px-7 pb-7 pt-7 lg:absolute lg:bottom-0 lg:right-[-90px] lg:top-6 lg:z-10 lg:min-h-0 lg:w-[470px] lg:px-9 lg:pb-[30px] lg:pt-[34px] short:pt-6" />}
             </div>
@@ -796,14 +815,12 @@ function Twin() {
 
         {!intro ? (
           <aside className={`flex min-h-0 flex-col max-lg:contents lg:col-start-1 lg:row-start-1 ${atk || wide || step === 4 ? 'relative z-20' : 'aside-c'}`} aria-label={stepName} inert={tour != null}>
-            <h2 className={`step-head max-lg:order-1 ${atk ? 'lg:pt-4' : wide ? 'lg:pt-5' : step === 4 ? 'step-head-c lg:pt-3' : 'pt-2 lg:pt-5 short:pt-2'}`} data-step-head aria-live="polite">
-              {/* моушн-бриф: первая строка выезжает из-под маски (при входе 60 мс, при смене шага 280 мс), серая только проявляется */}
-              <span className="head-mask"><motion.span key={`h${flowKey}-${head[0]}`} className="block" initial={{ y: '110%' }} animate={{ y: 0 }}
-                transition={{ duration: entered ? 0.52 : 0.62, ease: ease.soft, delay: entered ? flow.head : 0.06 }}>{head[0]}</motion.span></span>
-              {' '}<motion.span key={`m${flowKey}-${head[1]}`} className="mute" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                transition={{ duration: 0.32, ease: ease.out, delay: entered ? flow.headMute : 0.3 }}>{head[1]}</motion.span>
+            <h2 className={`step-head relative max-lg:order-1 ${atk ? 'lg:pt-4' : wide ? 'lg:pt-5' : step === 4 ? 'step-head-c lg:pt-3' : 'pt-2 lg:pt-5 short:pt-2'}`} data-step-head aria-live="polite">
+              {/* моушн-бриф: старый заголовок гаснет 140 мс, новый выезжает из-под маски по строкам (вход 60 мс, смена шага 280 мс), серая строка только проявляется */}
+              <StepHead id={`${flowKey}-${headId}`} text={head[0]} mute={head[1] ?? ''} entered={entered} />
             </h2>
             {step === 4 && <ClientTabs data={client?.data} pick={clientPick} onPick={setClientPick} className="relative z-10 max-lg:order-2 max-lg:mt-5 lg:mt-[clamp(14px,2.7vh,24px)]" />}
+            <ViewTransition name="hero-tile">
             <StepTile tone={STEP_TONE[step]} flowKey={flowKey} land={land} className={`shrink-0 max-lg:mt-[18px] max-lg:min-h-[200px] ${atk
               ? 'relative z-10 max-lg:order-2 lg:mt-[clamp(28px,7.8vh,70px)] lg:h-[clamp(220px,32.2vh,290px)] lg:w-[calc(100%+46px)]'
               : wide
@@ -835,7 +852,7 @@ function Twin() {
                 // блок едет вместе с плиткой, но не растягивается (layout="position"). Спутники (надпись, пояснение, второе число) проявляются после переезда
                 <motion.div layout="position" layoutDependency={flowKey} transition={spring.tile} id="number" className="flex flex-1 flex-col" aria-live="polite"
                   data-client-tile={step === 4 ? clientKey ?? '' : undefined}>
-                  {tileCap && <div key={`c${flowKey}`} className="tile-cap sat-in" style={satDelay(0)} data-at-least={step === 2 && atLeast ? '' : undefined}>{tileCap}</div>}
+                  <Sat k={flowKey} i={0} className="tile-cap" data-at-least={step === 2 && atLeast ? '' : undefined}>{tileCap || null}</Sat>
                   <motion.div ref={numEl} style={{ scale: numScale, originX: 0, originY: 0.5 }} className={`tile-num ${num.cls} ${step === 4 ? 'mt-1' : ''}`}
                     data-gap-pct={step === 2 ? '' : undefined} data-value={num.text}>
                     {num.pre && <span className="u u-pre !ml-0 mr-[0.06em]">{num.pre}</span>}
@@ -846,12 +863,13 @@ function Twin() {
                     {num.v == null && <span className="absolute">-</span>}
                     {num.unit && <span key={num.unit} className="u unit-in">{num.unit}</span>}
                   </motion.div>
-                  {tileSub && <div key={`s${flowKey}`} className={`tile-sub sat-in mt-auto pt-2 ${step === 3 ? 'tile-sub-def' : step === 4 ? 'tile-sub-c' : 'truncate max-lg:mt-1'}`} style={satDelay(1)}>{tileSub}</div>}
+                  <Sat k={flowKey} i={1} className={`tile-sub mt-auto pt-2 ${step === 3 ? 'tile-sub-def' : step === 4 ? 'tile-sub-c' : 'truncate max-lg:mt-1'}`}>{tileSub || null}</Sat>
                   {/* телефон: второе число внутри плитки одной строкой, как в 06-attack-375 */}
-                  {step !== 4 && <div key={`m${flowKey}`} className="sat-in mt-2 flex items-baseline gap-3 lg:hidden" style={satDelay(2)}><span className="text-[28px] font-medium leading-none tracking-[-0.04em]">{wide ? second.num : <Dec v={per10k} />}</span><span className="text-[13px] opacity-90">{wide ? second.sub.join(' ') : tr.v22.honestOne}</span></div>}
+                  <Sat k={flowKey} i={2} className="mt-2 flex items-baseline gap-3 lg:hidden">{step !== 4 && <><span className="text-[28px] font-medium leading-none tracking-[-0.04em]">{wide ? second.num : <Dec v={per10k} />}</span><span className="text-[13px] opacity-90">{wide ? second.sub.join(' ') : tr.v22.honestOne}</span></>}</Sat>
                 </motion.div>
               )}
             </StepTile>
+            </ViewTransition>
             {/* второе число под плиткой: 56 px чёрным, подпись в две строки; на «Атаке» рядом главная кнопка */}
             {step === 4 && robust && (
               <div className="sat-in flex items-center gap-x-7 max-lg:order-5 max-lg:mt-6 max-lg:px-1 lg:mt-[clamp(16px,2.9vh,26px)]" style={satDelay(2)} data-second>
@@ -862,10 +880,10 @@ function Twin() {
             {(atk || (step !== 4 && !fresh)) && (
               <div className={`flex items-center gap-x-8 max-lg:contents ${atk ? 'lg:mt-[clamp(20px,3.8vh,34px)]' : wide ? (step === 3 ? 'lg:mt-[clamp(18px,5.5vh,50px)]' : 'lg:mt-[clamp(22px,6.6vh,60px)]') : 'lg:mt-5 short:mt-3'}`}>
                 {!fresh && step !== 4 && (
-                  <div key={`f${flowKey}`} className={`sat-in flex items-center max-lg:hidden ${wide ? 'gap-x-7' : 'gap-x-[34px]'}`} style={satDelay(2)} data-second>
+                  <Sat k={flowKey} i={2} className={`flex items-center max-lg:hidden ${wide ? 'gap-x-7' : 'gap-x-[34px]'}`} data-second="">
                     <span className="fig2">{wide ? second.num : <Dec v={per10k} />}</span>
                     <span className="fig2-sub">{(wide ? second.sub : tr.v22.honestOut)[0]}<br />{(wide ? second.sub : tr.v22.honestOut)[1]}</span>
-                  </div>
+                  </Sat>
                 )}
                 {atk && <div className="ml-auto lg:-mr-[10px] lg:w-[230px] lg:shrink-0">{mainBar}</div>}
               </div>
@@ -889,6 +907,7 @@ function Twin() {
       </main>
       <p className="sr-only" aria-live="polite">{phase === 'done' ? tr.liveDone(kzt(final.withdrawn_kzt, lang)) : ''}</p>
     </div>
+    </ViewTransition>
   )
 }
 
@@ -979,8 +998,19 @@ function StepNav({ step, vals, hasHole, busy, locked, onPick }: { step: Step; va
   const prevCur = useRef(cur)
   const fromTone = prevCur.current
   useEffect(() => { prevCur.current = cur }, [cur])
+  // моушн-бриф 8: на телефоне активный шаг сам доезжает до начала ленты (прокручивается только лента, страница стоит)
+  const navEl = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const nav = navEl.current, sc = nav?.parentElement
+    if (!nav || !sc || !window.matchMedia('(max-width: 1023px)').matches) return
+    const btn = nav.querySelector<HTMLElement>('[aria-current="step"]')
+    if (!btn) return
+    const pad = parseFloat(getComputedStyle(sc).paddingLeft) || 0
+    const left = sc.scrollLeft + btn.getBoundingClientRect().left - sc.getBoundingClientRect().left - pad
+    sc.scrollTo({ left: Math.max(0, left), behavior: prefersReduced() ? 'auto' : 'smooth' })
+  }, [cur])
   return (
-    <nav aria-label={t.stepsAria} inert={locked}>
+    <nav ref={navEl} aria-label={t.stepsAria} inert={locked}>
       <ol className="stepnav">
         {items.map((name, i) => {
           const s = i + 1

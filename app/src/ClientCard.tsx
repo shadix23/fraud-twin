@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { motion } from 'motion/react'
-import { spring } from './motion'
+import { AnimatePresence, motion } from 'motion/react'
+import { ease, spring } from './motion'
 import { Check, Lock, PhoneCall, Send } from 'lucide-react'
 import type { ClientButton, ClientCase, ClientCheck, ClientLevel } from './data'
 import { useLang, type Dict } from './i18n'
@@ -87,6 +87,8 @@ export default function ClientScreen({ data, pick, onPick, auto, onState, onClos
   }, [auto, stage, ready, level, c, t])
 
   const showResult = (stage === 'result' && ready) || stage === 'after'
+  // моушн-бриф 6.4: лист предупреждения поднимается пружиной, в момент посадки телефон один раз вздрагивает
+  const warn = !!c && showResult && stage === 'result' && level !== 'low'
   const digits = c?.transfer.recipient.card_mask.match(/(\d{4})\s*$/)?.[1] ?? ''
 
   return (
@@ -95,7 +97,7 @@ export default function ClientScreen({ data, pick, onPick, auto, onState, onClos
       className="cphone-wrap outline-none max-lg:order-4">
       <p className="sr-only">{t.client.mock}</p>
       {/* v24 (макет 04-client): крупный телефон с наклоном -4°, экран банка: перевод, затемнение и лист с решением */}
-      <div className="cphone">
+      <div className={`cphone ${warn && !reduced() ? 'buzz' : ''}`}>
         <div className="cphone-screen">
           <span className="cphone-notch" aria-hidden />
           <span className="cphone-time" aria-hidden>09:41</span>
@@ -105,7 +107,11 @@ export default function ClientScreen({ data, pick, onPick, auto, onState, onClos
             {c && <p className="mt-3 text-[36px] font-medium leading-none tracking-[-0.035em] tabular-nums">{plainKzt(c.transfer.amount, lang)}</p>}
           </div>
           <span className={`cphone-dim ${c && showResult && (level !== 'low' || stage === 'after') ? 'on' : ''}`} aria-hidden />
-          <div className="cphone-sheet" aria-live="polite" key={`${key}-${stage}-${after ?? ''}`}>
+          {/* моушн-бриф 6.4: при смене получателя старый лист уходит вниз за 220 мс (ease.in), и только потом поднимается новый:
+              два листа одновременно не видны. Слот держит получателя, лист внутри пересоздаётся по стадии, как раньше */}
+          <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={key ?? 'none'} className="cphone-slot" exit={{ y: '115%', transition: { duration: 0.22, ease: ease.in } }}>
+          <div className={`cphone-sheet ${warn ? 'sheet-rise' : ''}`} aria-live="polite" key={`${stage}-${after ?? ''}`}>
             <span className="cphone-grab" aria-hidden />
             {data === null || (data && !c) ? (
               <p className="text-[16px] leading-snug text-ink-2">{t.client.noData}</p>
@@ -124,6 +130,8 @@ export default function ClientScreen({ data, pick, onPick, auto, onState, onClos
               <Warning c={c} level={level} digits={digits} primary={primary} onPress={press} />
             )}
           </div>
+          </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </section>
@@ -157,20 +165,20 @@ function Warning({ c, level, digits, primary, onPress }: { c: ClientCase; level:
   const risk = Math.round(Math.min(1, Math.max(0, c.risk.score)) * 100)
   return (
     <div className="flex flex-1 flex-col" aria-labelledby="client-title">
-      <span className="cphone-risk" role="img" aria-label={t.client.riskAria(risk)}>{level === 'blocked' ? <Lock size={20} strokeWidth={2.25} /> : '!'}</span>
+      <span className="cphone-risk pop-in [--d:180ms]" role="img" aria-label={t.client.riskAria(risk)}>{level === 'blocked' ? <Lock size={20} strokeWidth={2.25} /> : '!'}</span>
       <h2 id="client-title" className="mt-4 text-[25px] font-semibold leading-[1.08] tracking-[-0.028em]">{c.screen.title}</h2>
       <p className="mt-3 text-[14px] leading-snug text-ink-3">{t.client.held(plainKzt(c.transfer.amount, lang), digits)}</p>
       {c.reasons.length > 0 && (
         <ul className="cphone-reasons mt-5 space-y-3">
           {c.reasons.slice(0, 3).map((r, i) => (
-            <li key={r.key + i} className="client-reason flex gap-3" style={{ animationDelay: `${80 + i * 60}ms` }} data-reason={r.key}>
-              <span aria-hidden className="mt-[7px] size-2 shrink-0 rounded-full bg-leak" />
-              <span className="text-[15px] font-medium leading-[1.35] text-ink">{r.text}</span>
+            <li key={r.key + i} className="flex gap-3" style={{ ['--d' as string]: `${320 + i * 110}ms` }} data-reason={r.key}>
+              <span aria-hidden className="pop-in mt-[7px] size-2 shrink-0 rounded-full bg-leak" />
+              <span className="fade-d text-[15px] font-medium leading-[1.35] text-ink">{r.text}</span>
             </li>
           ))}
         </ul>
       )}
-      <div className="mt-auto flex flex-col gap-2.5 pt-5" role="group" aria-label={t.client.advice}>
+      <div className="fade-d mt-auto flex flex-col gap-2.5 pt-5" style={{ ['--d' as string]: `${320 + Math.min(3, c.reasons.length) * 110 + 60}ms` }} role="group" aria-label={t.client.advice}>
         {main.map((b) => (
           <button key={b.id} ref={buttons.indexOf(b) === firstPrimary ? primary : undefined} className={`cphone-btn ${b.primary ? 'client-cta' : 'cphone-sec'}`} onClick={() => onPress(b)}>
             {b.label}
@@ -211,11 +219,11 @@ export function ClientSide({ check, fresh, footer }: { check: { data: ClientChec
     <section className="client-side flex min-w-0 flex-col max-lg:contents" aria-label={t.client.limitCaps} data-client-price>
       {r && (
         <div className="max-lg:order-6 max-lg:mt-8 max-lg:px-1">
-          <div className={`client-limit tabular-nums ${fresh ? 'text-leak' : ''}`} data-first-silent>{pct(r.victims.first_on_card_silent_pct)}%</div>
+          <div className={`client-limit fade-d [--d:300ms] [--dur:320ms] tabular-nums ${fresh ? 'text-leak' : ''}`} data-first-silent>{pct(r.victims.first_on_card_silent_pct)}%</div>
           <p className="mt-4 max-w-[340px] text-[16px] leading-[1.4] text-ink-3" data-first-victim>{t.v22.limitText}</p>
         </div>
       )}
-      <div className="plate client-qr max-lg:hidden" data-qr-block>
+      <div className="plate client-qr in-r [--d:360ms] [--x:40px] max-lg:hidden" data-qr-block>
         <div className="mx-auto w-max"><QrCode text={url} label={t.phone.qrAria(url)} className="client-qr-code" /></div>
         <h3 className="mt-7 text-[18px] font-semibold leading-tight tracking-[-0.02em] text-ink short:mt-4">{t.phone.qrTitle}</h3>
         <p className="mt-2 text-[14px] leading-[1.45] text-ink-3">{t.phone.qrText}</p>

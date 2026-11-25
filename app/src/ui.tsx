@@ -21,6 +21,13 @@ const FLOW = {
   opacityTiming: { duration: 280, easing: 'ease-out' },
 } as const
 
+/** те же кривые NumberFlow с другой длительностью: калькулятор считает быстрее, пока тянут ползунок */
+export const flowTiming = (ms: number) => ({
+  transformTiming: { duration: ms, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+  spinTiming: { duration: ms, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+  opacityTiming: { duration: Math.min(280, ms), easing: 'ease-out' },
+})
+
 /** Плитка шага: стеклянный градиент 145 градусов. Все пять тонов лежат слоями, смена шага - новый тон проявляется поверх старого,
  *  два стеклянных листа справа. На «Дыре» текст ink.
  *  flow (моушн-бриф, раздел 4, «Перелив»): один постоянный узел на шагах 1-4. Внешняя обёртка без Motion несёт раскладку
@@ -139,7 +146,7 @@ export function useTilt(ref: RefObject<HTMLElement | null>, max = 4) {
 }
 
 /** Сумма в тенге крупно: «4,2 млн ₸» / «₸4.2M», единица мельче */
-export function Money({ v, flow = true }: { v: number; flow?: boolean }) {
+export function Money({ v, flow = true, timing }: { v: number; flow?: boolean; timing?: number }) {
   const { lang } = useLang()
   const m = Math.round(v / 1e5) / 10
   const zero = m === 0
@@ -149,7 +156,7 @@ export function Money({ v, flow = true }: { v: number; flow?: boolean }) {
   return (
     <span className="whitespace-nowrap" data-value={text}>
       {pre && <span className="u u-pre !ml-0 mr-[0.06em]">{unit}</span>}
-      {flow ? <NumberFlow value={m} locales={lang === 'en' ? 'en-US' : 'ru-RU'} {...FLOW} suffix={pre && !zero ? 'M' : undefined}
+      {flow ? <NumberFlow value={m} locales={lang === 'en' ? 'en-US' : 'ru-RU'} {...(timing ? flowTiming(timing) : FLOW)} suffix={pre && !zero ? 'M' : undefined}
         format={zero ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 1, maximumFractionDigits: 1 }} />
         : <span>{zero ? '0' : pre ? `${m.toFixed(1)}M` : m.toFixed(1).replace('.', ',')}</span>}
       {!pre && <span className="u">{unit}</span>}

@@ -100,7 +100,7 @@ export function MapTabs({ tab, onTab }: { tab: MapTab; onTab: (t: MapTab) => voi
 
 // v23 (макет 02-hole): большая плита справа. Y фиксирован 0-100%, сетка 100/50/0, посев серым, эволюция и доводка оранжевым,
 // лучшая попытка с ореолом и подписью, пунктир схемы из библиотеки с подписью слева, подпись прогона под картой
-export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleMeta[]; onRetry: () => void; head?: ReactNode }) {
+export function SearchMap({ s, meta, onRetry, head, enter = 'in-r' }: { s: MapState; meta: RuleMeta[]; onRetry: () => void; head?: ReactNode; enter?: string }) {
   const { t, lang } = useLang()
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ W: 800, H: 300 })
@@ -200,20 +200,23 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
   const bx = best ? x(best.i) : 0, by = best ? y(best.pct) : 0
 
   return (
-    <section className="plate map-xl flex flex-col px-4 pb-4 pt-4 max-lg:order-5 max-lg:mt-5 sm:px-6" aria-label={t.gap.caps} data-search-map>
+    <section className={`plate map-xl ${enter} flex flex-col px-4 pb-4 pt-4 max-lg:order-5 max-lg:mt-5 sm:px-6`} aria-label={t.gap.caps} data-search-map>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
         {head ? <><h2 className="sr-only">{t.gap.caps}</h2>{head}</> : <h2 className="t-caps text-ink-3">{t.gap.caps}</h2>}
       </div>
 
       <div ref={box} className="relative mt-4 h-[230px] lg:mt-6 lg:h-auto lg:min-h-0 lg:flex-1">
         {/* сетка 100/50/0: фиксированная шкала, точки не прыгают во время поиска */}
-        <svg width={W} height={H} className="absolute inset-0 block overflow-visible" aria-hidden>
+        <svg width={W} height={H} className="absolute inset-0 block overflow-visible" aria-hidden style={{ ['--fd' as string]: stagger ? '1500ms' : '0ms' }}>
           {[100, 50, 0].map((p) => <line key={p} x1={0} x2={W} y1={y(p)} y2={y(p)} stroke="rgba(14,14,17,0.07)" strokeWidth={1} />)}
           <text x={0} y={y(100) - 9} fontSize={12} fill={INK3} className="tabular-nums">100%</text>
           {d && <>
-            <line x1={0} x2={W} y1={level} y2={level} stroke={INK3} strokeOpacity={0.6} strokeWidth={1} strokeDasharray="5 6" />
-            <text x={12} y={level - 9} fontSize={13} fontWeight={500} fill="#3F3F46" stroke="#fff" strokeWidth={4} strokeOpacity={0.85}
-              strokeLinejoin="round" paintOrder="stroke" className="tabular-nums" data-map-level>{t.gap.level(pctText(d.base.pct, lang))}</text>
+            {/* моушн-бриф 6.2: пунктир библиотеки проводится слева направо, подпись проявляется следом */}
+            <line key={`lv${d.evals}`} className="map-level" x1={0} x2={W} y1={level} y2={level} stroke={INK3} strokeOpacity={0.6} strokeWidth={1} strokeDasharray="5 6" />
+            <text key={`lt${d.evals}`} style={{ ['--d' as string]: '300ms' }} x={12} y={level - 9} fontSize={13} fontWeight={500} fill="#3F3F46" stroke="#fff" strokeWidth={4} strokeOpacity={0.85}
+              strokeLinejoin="round" paintOrder="stroke" className="fade-d tabular-nums" data-map-level>{t.gap.level(pctText(d.base.pct, lang))}</text>
+            {/* вспышка лучшей попытки: остальные точки приглушаются на 0,9 с и возвращаются */}
+            <g className={best && !reduced() ? 'map-dim' : undefined}>
             {shown.map((h) => {
               if (!vis.has(h.i) || (best && h.i === best.i)) return null
               const seed = phaseOf(h, d) === 'seed'
@@ -222,12 +225,15 @@ export function SearchMap({ s, meta, onRetry, head }: { s: MapState; meta: RuleM
                   className={stagger || s.searching ? 'dot-in' : undefined} style={stagger ? { animationDelay: `${Math.round((lay.get(h.i) ?? 0) * 1400)}ms` } : undefined} />
               )
             })}
+            </g>
             {best && (
-              <g data-map-best={best.i}>
-                <circle cx={bx} cy={by} r={small ? 18 : 26} fill="#F5BE62" fillOpacity={0.28} />
-                <circle cx={bx} cy={by} r={small ? 8 : 11} fill={ORANGE} stroke="#fff" strokeWidth={3} />
+              // пик экрана: лучшая точка растёт из обычной (4 -> 11, x2,75), ореол, одна волна, подпись через 200 мс
+              <g key={`${best.i}-${d.evals}`} className="flash" data-map-best={best.i}>
+                <circle className="best-wave" cx={bx} cy={by} r={small ? 18 : 26} fill="none" stroke={ORANGE} strokeWidth={2} />
+                <circle className="best-halo" cx={bx} cy={by} r={small ? 18 : 26} fill="#F5BE62" fillOpacity={0.28} />
+                <circle className="best-dot" cx={bx} cy={by} r={small ? 8 : 11} fill={ORANGE} stroke="#fff" strokeWidth={3} />
                 <text x={bx < 70 ? bx + (small ? 22 : 32) : Math.min(W, bx)} y={bx < 70 ? by + 7 : by - (small ? 20 : 26)} textAnchor={bx < 70 ? 'start' : bx > W - 34 ? 'end' : 'middle'}
-                  fontSize={small ? 17 : 22} fontWeight={600} fill="#C7731C" className="tabular-nums">{pctText(best.pct, lang)}%</text>
+                  fontSize={small ? 17 : 22} fontWeight={600} fill="#C7731C" className="best-lbl tabular-nums">{pctText(best.pct, lang)}%</text>
               </g>
             )}
             {cur && <circle cx={x(cur.i)} cy={y(cur.pct)} r={rEvo + 4} fill="none" stroke={INK} strokeWidth={1.5} />}
@@ -314,13 +320,13 @@ export function Changes({ data, searching }: { data: Redteam | null; searching: 
       ) : (
         <>
           <ul className="mt-[12px] space-y-[8px]">
-            {top.map((d) => (
-              <li key={d.param} className="min-w-0">
+            {top.map((d, k) => (
+              <li key={d.param} className="min-w-0" style={{ ['--d' as string]: `${500 + k * 120}ms` }}>
                 <span className="block text-[13px] leading-tight text-ink-3">{paramTitle(d, t)}</span>
                 <span className="mt-[3px] flex min-w-0 flex-wrap items-center gap-x-2.5 text-[19px] min-[1400px]:flex-nowrap min-[1400px]:whitespace-nowrap font-medium leading-tight tracking-[-0.01em]">
-                  <span className="text-ink-mute line-through decoration-1">{diffValue(d.from, d.param, t, lang)}</span>
-                  <ArrowRight size={17} strokeWidth={2} className="shrink-0" aria-label={t.gap.became} role="img" />
-                  <span className="text-ink">{diffValue(d.to, d.param, t, lang)}</span>
+                  <span className="strike text-ink-mute">{diffValue(d.from, d.param, t, lang)}</span>
+                  <ArrowRight size={17} strokeWidth={2} className="chg-in shrink-0" aria-label={t.gap.became} role="img" />
+                  <span className="chg-in text-ink">{diffValue(d.to, d.param, t, lang)}</span>
                 </span>
               </li>
             ))}
