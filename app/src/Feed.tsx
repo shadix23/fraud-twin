@@ -137,7 +137,7 @@ export function FeedDialog({ open, tab, setTab, onClose, sc, log, honest, thr, m
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-[rgba(4,4,12,0.84)] transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
         <Dialog.Popup className="sheet fixed inset-2 z-50 mx-auto flex max-w-[1180px] flex-col outline-none sm:inset-x-5 sm:inset-y-6 lg:inset-y-10
-          transition-[opacity,transform] duration-200 ease-[var(--ease-out)] data-[starting-style]:translate-y-2 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" data-feed-dialog>
+          transition-[opacity,scale] duration-[180ms] ease-[var(--ease-out)] data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 data-[ending-style]:duration-[140ms]" data-feed-dialog>
           <div className="flex items-start gap-4 px-5 pb-3 pt-5 sm:px-8 sm:pt-6">
             <div className="min-w-0">
               <Dialog.Title className="text-[26px] font-semibold leading-tight tracking-[-0.02em]">{F.title}</Dialog.Title>

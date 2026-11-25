@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { List } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useLang } from './i18n'
 import { intl, num } from './format'
 
@@ -90,54 +90,152 @@ export function HonestField({ per10k, onFeed }: { per10k: number; onFeed: () => 
   return (
     <section data-honest-field aria-label={t.defense.fieldCaps}>
       <div className="flex flex-wrap items-center justify-between gap-x-4">
-        <div className="flex items-baseline gap-3">
-          <h3 className="t-caps text-ink-3">{t.defense.fieldCaps}</h3>
-          <p className="whitespace-nowrap text-[15px] font-medium tabular-nums text-ink-3" data-field-count>
-            <b className="text-[20px] font-semibold tracking-[-0.02em] text-warn">{intl(n, lang)}</b> {t.defense.fieldOf}
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <h3 className="panel-title">{t.v22.fieldTitle}</h3>
+          <p className="whitespace-nowrap text-[15px] tabular-nums text-ink-3" data-field-count>
+            <b className="mr-1.5 text-[19px] font-semibold tracking-[-0.02em] text-warn">{intl(n, lang)}</b>{t.defense.fieldOf}
           </p>
         </div>
-        <button type="button" className="-mr-1 flex min-h-9 items-center gap-2 rounded-lg px-1 text-[15px] font-medium text-ink-2 hover:text-ink" onClick={onFeed} data-feed-open>
-          <List size={16} strokeWidth={1.75} aria-hidden />{t.defense.feed}
+        <button type="button" className="link-btn !text-[14px] !font-medium" onClick={onFeed} data-feed-open>
+          {t.defense.feed}<ArrowRight size={15} strokeWidth={1.75} aria-hidden />
         </button>
       </div>
-      <div ref={wrap} className="mt-2">
+      <div ref={wrap} className="mt-3">
         <canvas ref={cvs} role="img" aria-label={t.defense.fieldAria(intl(n, lang))} style={{ width: cols * STEP, height: rows * STEP }} className="block" />
       </div>
-      <p className="t-caption mt-2 text-ink-3">{t.defense.fieldCaption}</p>
+      <p className="t-caption mt-2 text-ink-3 lg:sr-only">{t.defense.fieldCaption}</p>
     </section>
   )
 }
 
 /** Мера: свой тумблер, имя, цена для честных справа (на сколько задержек на 10 тыс. больше), пометка второй строкой */
-export function MeasureRow({ on, set, name, note, hint, price, hotkey, locked }: {
-  on: boolean; set: (v: boolean) => void; name: string; note?: string; hint?: string; price: number | null; hotkey: string; locked?: boolean
+export function MeasureRow({ on, set, name, note, hint, price, hotkey, locked, big }: {
+  on: boolean; set: (v: boolean) => void; name: string; note?: string; hint?: string; price: number | null; hotkey: string; locked?: boolean; big?: boolean
 }) {
   const { t, lang } = useLang()
   const sign = price == null ? '' : price < 0 ? '−' : '+'
   const p = price == null ? '' : `${sign}${num(Math.abs(price), lang)}`
+  // v23 (макет 03-defense): крупная строка, тумблер 56x32 в зелёном тоне, цена 34 px справа (включена - зелёная, выключена - серая)
+  if (big) return (
+    <div data-measure className={`measure-lg grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3.5 lg:gap-x-6 ${locked ? '' : 'cursor-pointer'}`}
+      onClick={(e) => { if (!locked && !(e.target as HTMLElement).closest('[role=switch]')) set(!on) }}>
+      <button type="button" role="switch" aria-checked={on} aria-label={t.defense.switchAria(name)} aria-keyshortcuts={hotkey} disabled={locked}
+        className="switch-lg disabled:opacity-70" onClick={() => set(!on)} />
+      <span className="min-w-0">
+        <span className={`block text-[22px] font-semibold leading-tight tracking-[-0.4px] max-lg:text-[17px] ${on ? 'text-ink' : 'text-ink-3'}`}>{name}</span>
+        {(hint || note) && <span className="mt-1 block text-[15px] leading-snug text-ink-3 max-lg:text-[14px]">{hint ?? note}</span>}
+        {hint && note && <span className="mt-0.5 block text-[15px] leading-snug text-ink-3">{note}</span>}
+      </span>
+      <span className={`text-right text-[34px] font-medium leading-none tracking-[-1.2px] tabular-nums max-lg:text-[22px] max-lg:tracking-[-0.5px] ${on ? 'text-stop' : 'text-ink-mute'}`} title={t.defense.priceTitle} aria-label={price != null ? t.defense.priceAria(p) : undefined}>
+        {p}
+      </span>
+    </div>
+  )
   return (
-    <div data-measure className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 py-1.5 ${locked ? '' : 'cursor-pointer'}`}
+    <div data-measure className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3.5 py-2 ${locked ? '' : 'cursor-pointer'}`}
       onClick={(e) => { if (!locked && !(e.target as HTMLElement).closest('[role=switch]')) set(!on) }}>
       <button type="button" role="switch" aria-checked={on} aria-label={t.defense.switchAria(name)} aria-keyshortcuts={hotkey} disabled={locked}
         className="switch mt-px disabled:opacity-60" onClick={() => set(!on)} />
-      <span className="min-w-0 text-[15px] font-medium leading-[22px] tracking-[-0.01em] text-ink">{name}</span>
-      <span className="text-right text-[15px] font-semibold leading-[22px] tabular-nums text-warn" title={t.defense.priceTitle} aria-label={price != null ? t.defense.priceAria(p) : undefined}>
+      <span className={`min-w-0 text-[15px] leading-[22px] tracking-[-0.01em] ${on ? 'font-semibold text-ink' : 'text-ink-2'}`}>{name}</span>
+      <span className={`text-right text-[15px] font-semibold leading-[22px] tabular-nums ${price != null && price < 5 ? 'text-stop' : 'text-warn' /* v22: малая цена (до 5 на 10 тыс.) зелёным, как в макете */}`} title={t.defense.priceTitle} aria-label={price != null ? t.defense.priceAria(p) : undefined}>
         {p}
       </span>
       {/* пометка во всю ширину под именем и ценой: «сценарий, в РК для переводов не действует» на 375 px не ломается в три строки */}
-      {note && <span className="col-span-2 col-start-2 text-[13px] font-medium leading-snug text-ink-3">{note}</span>}
-      {hint && <span className="col-span-2 col-start-2 text-[13px] font-medium leading-snug text-ink-3 short:hidden">{hint}</span>}
+      {note && <span className="col-span-2 col-start-2 text-[13.5px] leading-snug text-ink-3">{note}</span>}
+      {hint && <span className="col-span-2 col-start-2 text-[13.5px] leading-snug text-ink-3">{hint}</span>}
     </div>
   )
 }
 
 /** Шапка списка мер: подписи колонок, как у ленты раундов */
-export function MeasuresHead() {
+export function MeasuresHead({ big }: { big?: boolean }) {
   const { t } = useLang()
   return (
-    <div className="flex items-center justify-between gap-3 pb-1 t-caps text-ink-3" aria-hidden>
-      <span>{t.defense.measuresCaps}</span><span title={t.defense.priceTitle}>{t.defense.priceCaps}</span>
+    <div className={`flex items-baseline justify-between gap-3 ${big ? 'pb-2.5 short:pb-0' : 'pb-2'}`}>
+      <h2 className={big ? 'plate-title' : 'panel-title'}>{t.v22.measures}</h2>
+      <span className="text-right text-[14px] text-ink-mute" title={t.defense.priceTitle} aria-hidden>{big ? <><span className="max-lg:hidden">{t.v22.priceHeadLong}</span><span className="lg:hidden">{t.v22.priceHead}</span></> : t.v22.priceHead}</span>
     </div>
+  )
+}
+
+// поле честных переводов на плите (макет 03-defense): 1 000 точек, точка = 10 переводов, задержанные зелёным с ореолом.
+// Шаг сетки подбирается под плиту, порядок окрашивания постоянный: новые задержанные добавляются, старые остаются
+const DOTS = 1000
+let DOT_RANK: number[] | null = null
+function dotRank() {
+  if (DOT_RANK) return DOT_RANK
+  let a = 11
+  const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+  const order = Array.from({ length: DOTS }, (_, i) => i)
+  for (let i = DOTS - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]] }
+  DOT_RANK = order
+  return order
+}
+export function HonestPlate({ per10k, onFeed, className = '' }: { per10k: number; onFeed: () => void; className?: string }) {
+  const { t, lang } = useLang()
+  const box = useRef<HTMLDivElement>(null)
+  const [sz, setSz] = useState({ w: 400, h: 200 })
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setSz({ w: Math.floor(e.contentRect.width), h: Math.floor(e.contentRect.height) }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const step = Math.max(6, Math.min(12, Math.sqrt((sz.w * Math.max(sz.h, 60)) / DOTS)))
+  const cols = Math.max(10, Math.floor(sz.w / step))
+  const rows = Math.ceil(DOTS / cols)
+  const green = per10k > 0 ? Math.min(DOTS, Math.ceil(per10k / 10)) : 0
+  const rank = dotRank()
+  const on = new Set(rank.slice(0, green))
+  const r = Math.max(1.8, step * 0.3)
+  const v = num(per10k, lang)
+  return (
+    <section className={`plate flex flex-col ${className}`} data-honest-field aria-label={t.defense.fieldCaps}>
+      <h3 className="plate-title">{t.v22.fieldTitle}</h3>
+      <p className="mt-1.5 text-[15px] tabular-nums text-ink-3" data-field-count>{t.v22.heldOf(v)}</p>
+      <div ref={box} className="relative mt-4 min-h-[120px] flex-1">
+        <svg width={cols * step} height={rows * step} className="absolute left-0 top-0 block max-h-full" role="img" aria-label={t.defense.fieldAria(v)}>
+          {Array.from({ length: DOTS }, (_, i) => on.has(i) ? null : <circle key={i} cx={(i % cols) * step + step / 2} cy={Math.floor(i / cols) * step + step / 2} r={r} fill="#8E8E97" fillOpacity={0.45} />)}
+          {[...on].map((i) => {
+            const cx = (i % cols) * step + step / 2, cy = Math.floor(i / cols) * step + step / 2
+            return <g key={i} className={reduced() ? undefined : 'dot-in'}><circle cx={cx} cy={cy} r={9} fill="#15803D" fillOpacity={0.18} /><circle cx={cx} cy={cy} r={r + 0.6} fill="#15803D" /></g>
+          })}
+        </svg>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <p className="text-[13px] text-ink-mute">{t.v22.dotCaption}</p>
+        <button type="button" className="link-btn !min-h-8 !text-[13px] !font-medium" onClick={onFeed} data-feed-open>
+          {t.v22.feedLink}<ArrowRight size={14} strokeWidth={1.75} aria-hidden />
+        </button>
+      </div>
+    </section>
+  )
+}
+
+/** Тёмная плита «ИИ ищет обход уже нашей модели»: до поиска - приглашение с кнопкой, после - живое число раунда */
+export function AiPlate({ result, onRun, busy, className = '' }: { result: { pct: number; withdrawn: string; atLeast: boolean } | null; onRun: () => void; busy?: boolean; className?: string }) {
+  const { t, lang } = useLang()
+  const V = t.v22
+  return (
+    <section className={`tile ai-plate flex flex-col text-white ${className}`} data-tone="report" aria-label={`${V.aiTitle[0]} ${V.aiTitle[1]}`} data-ai-plate={result ? 'result' : 'invite'}>
+      <span aria-hidden className="tile-bg" data-on="" />
+      <span aria-hidden className="tile-sheet tile-sheet-a" />
+      <span aria-hidden className="tile-sheet tile-sheet-b" />
+      <h2 className="text-[24px] font-semibold leading-[1.15] tracking-[-0.5px] max-lg:text-[20px]">{V.aiTitle[0]}<br />{V.aiTitle[1]}</h2>
+      {result ? (
+        result.pct > 0.05 ? <>
+          {result.atLeast && <p className="mt-auto text-[18px] font-medium text-[#FFB4A8] lg:mt-[clamp(16px,4vh,44px)]">{V.atLeast}</p>}
+          <p className={`ai-num ${result.atLeast ? '' : 'mt-auto lg:mt-[clamp(16px,4vh,44px)]'}`} data-ai-pct>{num(result.pct, lang)}%</p>
+          <p className="mt-auto max-w-[320px] pt-3 text-[15px] leading-snug text-white/80">{V.aiAgain(result.withdrawn)[0]}<br />{V.aiAgain(result.withdrawn)[1]}</p>
+        </> : <p className="mt-auto max-w-[320px] text-[15px] leading-snug text-white/85">{V.aiNone}</p>
+      ) : <>
+        <p className="mt-auto max-w-[320px] pt-4 text-[15px] leading-snug text-white/80">{V.aiInvite}</p>
+        <button type="button" className="ctl mt-5 !h-12 w-max !gap-3 rounded-full bg-white !px-5 text-[15px] font-semibold text-ink hover:bg-white/90 disabled:opacity-60" onClick={onRun} disabled={busy} data-ai-model>
+          {V.aiRun}<ArrowRight size={17} strokeWidth={2} aria-hidden />
+        </button>
+      </>}
+    </section>
   )
 }
 

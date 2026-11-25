@@ -90,9 +90,11 @@ export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = 
   let moves: Pt[] = []
   let mark: ModelMark | null = model
   let again: { y: number; x: number; lb?: boolean } | null = null
-  const showDemo = demo != null && anchors
+  // отчёт без своих раундов (открыт сразу по #report): ход проверки по опорным точкам демо-банка, без анимации
+  const autoDemo = still && !own && !!anchors && anchors.scheme === scheme
+  const showDemo = (demo != null || autoDemo) && anchors
   if (showDemo) {
-    const k = demo!
+    const k = autoDemo ? anchors!.moves.length + 2 : demo!
     moves = anchors!.moves.slice(0, Math.min(k, anchors!.moves.length)).map((m, i) => {
       const e = Object.entries(m.rules)
       return { key: `d${i}`, x: m.honest, y: m.pct, lb: m.lower_bound, base: !e.length, label: e.length ? e.map(([p, v]) => valueOf(p, v)).join(', ') : T.profile }
@@ -176,7 +178,7 @@ export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = 
   const dot = (p: { x: number; y: number }) => ({ transform: `translate(${px(p.x)}px, ${py(p.y)}px)` })
 
   const plot = (
-    <div ref={box} className={`relative ${head ? 'h-[248px] lg:h-auto lg:min-h-0 lg:flex-1' : `mt-1.5 ${still ? 'h-[200px]' : 'h-[172px] short:h-[144px]'}`}`}
+    <div ref={box} className={`relative ${head ? 'h-[248px] lg:h-auto lg:min-h-0 lg:flex-1' : `mt-1.5 ${still ? 'h-[200px] lg:h-[290px] print:h-[200px]' : 'h-[172px] short:h-[144px]'}`}`}
       role="img" aria-label={T.aria(summary)} data-tradeoff-plot>
       {ready && <>
         <svg className="absolute inset-0 overflow-visible" width={size.w} height={size.h} aria-hidden>
@@ -240,13 +242,13 @@ export function TradeoffMap({ rounds, model, meta, unseen, scheme, ctx, still = 
 
   // нижняя плита шага «Дыра»: та же высота, что у карты поиска, поле во всю ширину слева, итог колонкой справа
   if (head) return (
-    <section className="plate flex shrink-0 flex-col px-4 pb-3 pt-3.5 sm:px-5 lg:h-[240px] lg:px-6 short:h-[200px] short:pb-2.5 short:pt-3" data-tradeoff aria-label={T.caps}>
+    <section className="plate map-xl flex shrink-0 flex-col px-4 pb-4 pt-4 max-lg:order-5 max-lg:mt-5 sm:px-6 lg:!pl-[56px]" data-tradeoff aria-label={T.caps}>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
         <h2 className="sr-only">{T.caps}</h2>
         {head}
         <span className="t-caption text-ink-2 sm:ml-auto">{T.goal}</span>
       </div>
-      <div className="mt-1.5 flex min-h-0 flex-1 flex-col gap-2 lg:flex-row lg:gap-7">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-2 lg:mt-6 lg:flex-row lg:gap-7">
         {plot}
         <div className="flex flex-col gap-2 lg:w-[268px] lg:shrink-0 lg:justify-center lg:overflow-y-auto">{axes}{sum}{demoBtn}</div>
       </div>

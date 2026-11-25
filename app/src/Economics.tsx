@@ -1,6 +1,8 @@
 import { useEffect, useId, useState } from 'react'
+import { motion } from 'motion/react'
+import { spring } from './motion'
 import { Slider } from '@base-ui/react/slider'
-import { Money } from './ui'
+import { Money, StepTile } from './ui'
 import { useLang, type Dict, type Lang } from './i18n'
 import { kzt, num } from './format'
 
@@ -35,63 +37,64 @@ export function paybackText(m: number, t: Dict, lang: Lang) {
   return t.econ.months(m < 12 ? num(m, lang) : String(Math.round(m)))
 }
 
-/** Плита калькулятора под листом отчёта (на экране; в PDF вместо неё строка в листе) */
+/** Плита калькулятора под листом отчёта (на экране; в PDF вместо неё строка в листе).
+ *  v22: вывод «Окупается, если убрать X% потерь» заголовком раздела, итог на зелёной плитке справа от входов */
 export default function Economics({ v, set }: { v: Econ; set: (e: Econ) => void }) {
   const { t, lang } = useLang()
-  const E = t.econ
+  const E = t.econ, V = t.v22
   const r = econCalc(v)
   const scen = (Object.keys(ECON_PRESETS) as Scenario[]).find((k) => (Object.keys(v) as (keyof Econ)[]).every((f) => ECON_PRESETS[k][f] === v[f]))
   const put = (k: keyof Econ) => (x: number) => set({ ...v, [k]: x })
+  const be = r.breakeven != null && Number.isFinite(r.breakeven) ? r.breakeven : null
 
   return (
-    <section className="plate no-print mx-auto mt-3 max-w-[880px] p-5 sm:px-12 sm:py-9" data-rep-econ aria-labelledby="econ-h">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <h2 id="econ-h" className="t-title">{E.title}</h2>
-        <div className="seg seg-sm seg-in" role="group" aria-label={E.scenAria}>
-          {(Object.keys(ECON_PRESETS) as Scenario[]).map((k) => (
-            <button key={k} type="button" className="seg-item" aria-pressed={scen === k} onClick={() => set(ECON_PRESETS[k])} data-econ-scen={k}>
-              {scen === k && <span className="seg-on" aria-hidden />}<span className="relative">{E.scen[k]}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+    <section className="no-print mx-auto max-w-[1328px]" data-rep-econ aria-labelledby="econ-h">
+      <h2 id="econ-h" className="rep-h2" aria-live="polite" data-econ-be>{be != null ? V.repEconH(num(be, lang)) : E.title}</h2>
+      <p className="mt-2 text-[16px] leading-snug text-ink-3">{V.repEconSub}</p>
 
-      <div className="mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,300px)]">
-        {/* итог: на телефоне сверху, на широком справа */}
-        <div className="nest self-start p-5 sm:order-2 sm:p-6" aria-live="polite" data-econ-out>
-          <p className="text-[15px] font-medium text-ink-2">{E.saves}</p>
-          <p className="rep-num2 mt-2 text-stop" data-econ-saves><Money v={r.saves} /></p>
-          <p className="mt-2 text-[15px] leading-snug text-ink-3">{E.savesSub(kzt(r.loss, lang), kzt(r.ops, lang))}</p>
-          <dl className="mt-5 grid grid-cols-2 gap-x-4 border-t border-line pt-4">
-            <div>
-              <dt className="text-[14px] font-medium text-ink-3">{E.payback}</dt>
-              <dd className={`mt-1 text-[22px] font-semibold leading-tight tracking-[-0.02em] ${Number.isFinite(r.payback) && r.payback <= 12 ? 'text-ink' : 'text-leak'}`} data-econ-payback>
-                {paybackText(r.payback, t, lang)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[14px] font-medium text-ink-3">{E.perTenge}</dt>
-              <dd className="mt-1 text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">
-                {r.ret == null ? '-' : lang === 'en' ? `₸${num(r.ret, lang)}` : `${num(r.ret, lang)} ₸`}
-              </dd>
-            </div>
-          </dl>
-          {r.breakeven != null && <p className="mt-4 border-t border-line pt-4 text-[15px] font-medium leading-snug text-ink" data-econ-be>{E.breakeven(num(r.breakeven, lang))}</p>}
+      <div className="plate mt-5 grid gap-x-12 gap-y-7 px-5 py-6 sm:px-11 sm:py-9 lg:grid-cols-[minmax(0,600px)_minmax(0,1fr)]">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 lg:col-start-1 lg:row-start-1">
+          <h3 className="text-[19px] font-semibold tracking-[-0.015em]">{V.repEconIn}</h3>
+          <div className="seg seg-sm seg-in" role="group" aria-label={E.scenAria}>
+            {(Object.keys(ECON_PRESETS) as Scenario[]).map((k) => (
+              <button key={k} type="button" className="seg-item" aria-pressed={scen === k} onClick={() => set(ECON_PRESETS[k])} data-econ-scen={k}>
+                {scen === k && <motion.span layoutId="seg-econ" transition={spring.ui} className="seg-on" aria-hidden />}<span className="relative">{E.scen[k]}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-5 sm:order-1">
+        {/* итог: на телефоне сразу под заголовком, на широком справа от входов */}
+        <div className="econ-out self-start lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <StepTile tone="defense" className="econ-tile px-6 py-6 sm:px-8 sm:py-7 lg:px-10 lg:py-9">
+            <div aria-live="polite" data-econ-out>
+              <p className="text-[15px] font-medium opacity-80">{E.saves}</p>
+              <p className="rep-xl mt-3" data-econ-saves><Money v={r.saves} /></p>
+              <p className="mt-3 text-[14px] leading-snug opacity-90">{E.savesSub(kzt(r.loss, lang), kzt(r.ops, lang))}</p>
+              <dl className="mt-8 space-y-3">
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <dd className="rep-kpi" data-econ-payback>{paybackText(r.payback, t, lang)}</dd>
+                  <dt className="order-2 text-[14px] opacity-85">{V.repPayback}</dt>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <dd className="rep-kpi">{r.ret == null ? '-' : lang === 'en' ? <><span className="rep-kpi-u">₸</span>{num(r.ret, lang)}</> : <>{num(r.ret, lang)}<span className="rep-kpi-u ml-[0.18em]">₸</span></>}</dd>
+                  <dt className="order-2 text-[14px] opacity-85">{V.repPerTenge}</dt>
+                </div>
+              </dl>
+            </div>
+          </StepTile>
+          <p className="mt-4 text-[14px] leading-[1.4] text-ink-3">{V.repEconNote(kzt(v.P, lang))}</p>
+        </div>
+
+        <div className="space-y-6 lg:col-start-1 lg:row-start-2">
           <MoneyField label={E.f.L} v={v.L} set={put('L')} />
           <PctField label={E.f.h} v={v.h} set={put('h')} max={0.8} />
           <PctField label={E.f.c} v={v.c} set={put('c')} max={1} hint={E.twinHint} />
           <MoneyField label={E.f.O} v={v.O} set={put('O')} />
           <PctField label={E.f.o} v={v.o} set={put('o')} max={0.5} />
-          <MoneyField label={E.f.P} v={v.P} set={put('P')} hint={E.priceHint} />
+          <MoneyField label={E.f.P} v={v.P} set={put('P')} />
         </div>
       </div>
-
-      <p className="mt-6 flex items-start gap-2 border-t border-line pt-4 text-[15px] leading-snug text-ink-3">
-        <span className="mt-[7px] h-2 w-2 shrink-0 rotate-45 border border-ink-3" aria-hidden />{E.note}
-      </p>
     </section>
   )
 }

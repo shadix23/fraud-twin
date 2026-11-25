@@ -1,4 +1,5 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, CircleHelp } from 'lucide-react'
+import { Popover } from '@base-ui/react/popover'
 import type { Metrics } from './data'
 import { num } from './format'
 import { useLang, type Dict, type Lang } from './i18n'
@@ -16,6 +17,29 @@ export function SceneWords() {
         </dl>
       </More>
     </section>
+  )
+}
+
+// v22 (п. 3 CHANGES): «Что на сцене» пилюлей на плите сцены рядом с выбором схемы, слова открываются поповером
+export function SceneWordsPill() {
+  const { t } = useLang()
+  return (
+    <Popover.Root>
+      <Popover.Trigger className="ctl ctl-scene !h-10 !gap-2 !px-[18px] !text-[14px] !font-medium !text-ink-2" data-words>
+        <CircleHelp size={16} strokeWidth={1.75} aria-hidden />{t.scene.wordsTitle}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner side="top" sideOffset={8} align="start" className="z-40">
+          <Popover.Popup className="w-[min(420px,calc(100vw-24px))] rounded-[20px] bg-surface p-4 text-ink shadow-[0_1px_2px_rgba(14,14,17,0.06),0_18px_40px_-16px_rgba(14,14,17,0.3)] outline-none
+            origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0">
+            <Popover.Title className="text-[15px] font-semibold">{t.scene.wordsTitle}</Popover.Title>
+            <dl className="mt-2 space-y-1.5 text-[14.5px] leading-snug">
+              {t.scene.words.map(([w, d]) => <div key={w}><dt className="inline font-medium text-ink">{w}</dt><dd className="inline text-ink-2"> - {d}</dd></div>)}
+            </dl>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
 

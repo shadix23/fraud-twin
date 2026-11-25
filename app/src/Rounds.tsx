@@ -44,15 +44,16 @@ export function Rounds({ rounds, meta }: { rounds: Round[]; meta: RuleMeta[] }) 
   const base = rounds[0]
   const shown = (base && !last.includes(base) ? [base, ...rounds.slice(-2)] : last).reverse()
   const wide = shown.some((r) => r.atLeast && r.pct < 99.95)
-  const cols = `grid ${wide ? 'grid-cols-[1rem_minmax(0,1fr)_4.5rem_4rem] sm:grid-cols-[1.25rem_minmax(0,1fr)_4.75rem_4.25rem]' : 'grid-cols-[1rem_minmax(0,1fr)_4rem_4rem] sm:grid-cols-[1.25rem_minmax(0,1fr)_4.5rem_4.25rem]'} items-center gap-x-2 px-3 whitespace-nowrap sm:gap-x-2.5 sm:px-4`
+  const cols = `grid ${wide ? 'grid-cols-[1rem_minmax(0,1fr)_4.5rem_4rem] sm:grid-cols-[1.25rem_minmax(0,1fr)_4.75rem_4.25rem]' : 'grid-cols-[1rem_minmax(0,1fr)_4rem_4rem] sm:grid-cols-[1.25rem_minmax(0,1fr)_4.5rem_4.25rem]'} items-center gap-x-2 whitespace-nowrap sm:gap-x-2.5`
   return (
-    <section data-rounds aria-label={t.rounds.title}>
-      <div className={`${cols} t-caps text-ink-3`} aria-hidden>
+    <section data-rounds aria-label={t.rounds.title} className="border-t border-line pt-2">
+      {/* v22 (п. 5 CHANGES): раунды строками под чертой, шапка колонок только для чтения с экрана и в подсказках */}
+      <div className={`${cols} sr-only`} aria-hidden>
         <span className="col-span-2">{t.rounds.title}</span>
         <span className="text-right">{t.rounds.colW}</span>
         <span className="text-right" title={t.rounds.honest}>{t.rounds.colH}</span>
       </div>
-      <ol className="mt-1.5 space-y-1.5 short:space-y-1">
+      <ol>
         {shown.map((r, k) => {
           const prev = rounds.find((x) => x.n === r.n - 1)
           const words = [...(r.vsModel ? [t.rounds.vsModel] : []), ...r.asked.map((c) => changeText(meta, c.param, c.to, t, lang)).filter(Boolean) as string[]]
@@ -61,18 +62,18 @@ export function Rounds({ rounds, meta }: { rounds: Round[]; meta: RuleMeta[] }) 
           const atLeast = r.atLeast && r.pct < 99.95 // «не меньше 100%» не пишем
           const onProf = !r.base && !r.vsModel && r.asked.length && r.profilePct != null ? t.rounds.onProfile(pctText(r.profilePct, lang)) : null // правило в первой строке, значение во второй: порог, который назвали в зале, не обрезается
           return (
-            <li key={r.n} className={`nest ${cols} min-h-10 py-1.5 text-[15px] tabular-nums short:py-1 ${shown.length === 3 && k === 1 ? 'mid:hidden' : ''}`} data-round={r.n}
+            <li key={r.n} className={`${cols} min-h-[34px] py-1 text-[15px] tabular-nums short:min-h-8 ${shown.length === 3 && k === 1 ? 'mid:hidden' : ''}`} data-round={r.n}
               aria-label={`${t.rounds.round(r.n)}: ${words.join(', ') || t.rounds.profile}. ${atLeast ? t.rounds.atLeast + ' ' : ''}${pctText(r.pct, lang)}% ${t.rounds.withdrawn}${onProf ? ` (${onProf})` : ''}${r.honest != null ? `, ${num(r.honest, lang)} ${t.rounds.honest}` : ''}${r.source === 'ready' ? `, ${t.rounds.ready}` : ''}`}>
-              <span className="font-medium text-ink-3" aria-hidden>{r.n}</span>
+              <span className="text-[14px] font-medium text-ink-mute" aria-hidden>{r.n}</span>
               <span className="min-w-0 leading-tight" aria-hidden>
                 {cut > 0
-                  ? <><span className="block truncate font-medium text-ink" title={words.join(', ')}>{what.slice(0, cut)}</span><span className="t-caption block truncate text-ink-2">{what.slice(cut + 2)}</span></>
-                  : <span className="line-clamp-2 whitespace-normal font-medium text-ink" title={words.join(', ') || t.rounds.profile}>{what}</span>}
+                  ? <span className="block truncate" title={words.join(', ')}><span className={k === 0 ? 'font-medium text-ink' : 'text-ink-2'}>{what.slice(0, cut)}</span> <span className="text-[14px] text-ink-3">{what.slice(cut + 2)}</span></span>
+                  : <span className={`line-clamp-2 whitespace-normal ${k === 0 ? 'font-medium text-ink' : 'text-ink-2'}`} title={words.join(', ') || t.rounds.profile}>{what}</span>}
                 {onProf && <span className="t-caption block truncate text-ink-3" title={onProf} data-round-profile>{onProf}</span>}
                 {r.source === 'ready' && !r.base && <span className="t-caption block text-ink-3">{t.rounds.ready}</span>}
               </span>
-              <span className="flex items-center justify-end gap-1" aria-hidden><b className="font-semibold text-leak" title={atLeast ? t.rounds.atLeast : undefined}>{atLeast ? '≥' : ''}{pctText(r.pct, lang)}%</b><Delta cur={r.pct} prev={prev?.pct} bad="text-leak" /></span>
-              <span className="flex items-center justify-end gap-1" aria-hidden>{r.honest != null ? <><b className="font-semibold text-warn">{num(r.honest, lang)}</b><Delta cur={r.honest} prev={prev?.honest} bad="text-warn" /></> : <span className="text-ink-3">-</span>}</span>
+              <span className="flex items-center justify-end gap-1" aria-hidden><b className="font-medium text-leak" title={atLeast ? `${t.rounds.atLeast}, ${t.rounds.colW}` : t.rounds.colW}>{atLeast ? '≥' : ''}{pctText(r.pct, lang)}%</b><Delta cur={r.pct} prev={prev?.pct} bad="text-leak" /></span>
+              <span className="flex items-center justify-end gap-1" aria-hidden>{r.honest != null ? <><b className={`font-medium ${k === 0 && prev && r.honest > (prev.honest ?? 0) + 0.05 ? 'text-warn' : 'text-ink-2'}`} title={t.rounds.honest}>{num(r.honest, lang)}</b><Delta cur={r.honest} prev={prev?.honest} bad="text-warn" /></> : <span className="text-ink-3">-</span>}</span>
             </li>
           )
         })}

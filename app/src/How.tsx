@@ -182,7 +182,7 @@ export default function How({ open, bank, facts, onClose, onStep }: { open: bool
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-[rgba(30,24,70,0.38)] transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
         <Dialog.Popup className="sheet fixed inset-2 z-50 mx-auto flex max-w-[1180px] flex-col outline-none sm:inset-x-5 sm:inset-y-5
-          transition-[opacity,transform] duration-300 ease-[var(--ease-soft)] data-[starting-style]:translate-y-2 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" data-how>
+          transition-[opacity,scale] duration-[180ms] ease-[var(--ease-out)] data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 data-[ending-style]:duration-[140ms]" data-how>
           <div className="flex items-start gap-4 px-5 pb-4 pt-5 sm:px-10 sm:pt-8">
             <div className="min-w-0">
               <Dialog.Title className="t-h1"><span className="text-ink-mute">{t.how.titleMute}</span> {t.how.titleInk}</Dialog.Title>

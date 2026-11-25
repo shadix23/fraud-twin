@@ -20,7 +20,7 @@ export function TourCaption({ i, onStop }: { i: number; onStop: () => void }) {
   if (s.id === 'report') return null
   const n = STEPS.indexOf(s.step) + 1
   return (
-    <div className="tour-card fixed inset-x-2 bottom-2 z-50 px-5 pb-4 pt-3 text-ink lg:absolute lg:inset-x-auto lg:bottom-6 lg:left-6 lg:w-[460px]" data-tour={s.id}>
+    <div key={s.id} className="tour-card tour-in fixed inset-x-2 bottom-2 z-50 px-5 pb-4 pt-3 text-ink lg:absolute lg:inset-x-auto lg:bottom-6 lg:left-6 lg:w-[460px]" data-tour={s.id}>
       <div className="flex items-center gap-3">
         <span className="text-[18px] font-semibold tracking-[-0.02em] text-brand">{t.steps[s.step]}</span>
         <span className="text-[15px] text-ink-3">{t.tour.stepOf(n, STEPS.length)}</span>

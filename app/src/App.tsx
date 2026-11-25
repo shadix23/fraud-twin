@@ -1,28 +1,27 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'motion/react'
-import { ToggleGroup } from '@base-ui/react/toggle-group'
-import { Toggle } from '@base-ui/react/toggle'
-import { Select } from '@base-ui/react/select'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { animate, motion, MotionConfig, useMotionValue } from 'motion/react'
+import NumberFlow from '@number-flow/react'
+import { ease, flow, numberTiming, spring } from './motion'
 import { Popover } from '@base-ui/react/popover'
-import { ArrowRight, Check, ChevronDown, Info, Landmark, Menu, Play } from 'lucide-react'
+import { ArrowRight, Check, Info, Landmark, Menu, Play } from 'lucide-react'
 import { DEMO_CTX, editable, hasApi, honestPrices, loadBank, loadClientCheck, loadReadyHole, isLowerBound, profilePct, type ClientCheck, runRedteam, RuleError, rulesDiff, sameRules, warmApi, type RedteamResult, type RuleErr, type RuleSet, loadScenario, runKey, type Bank, type Calib, type Ctx, type Freeze, type Redteam, type RunKey, type Scenario, type TxEvent } from './data'
 import Calibration from './Calibration'
 import { FeedDialog } from './Feed'
 import How from './How'
-import ClientScreen, { ClientFacts, ClientOutcomes, type PhoneState } from './ClientCard'
+import ClientScreen, { ClientSide, ClientTabs, type PhoneState } from './ClientCard'
 import { TOUR, TourCaption, type TourId } from './Intro'
 import { EntryPlate, EntryTiles, useEntryFacts } from './Entry'
 import { LANGS, useLang, type Lang } from './i18n'
-import { Dec, Money, STEP_TONE, StepTile } from './ui'
+import { Dec, STEP_TONE, StepTile } from './ui'
 import Report from './Report'
 import Scene, { LINE_MIN, SPEED } from './Scene'
-import { CaseTask, caughtNote, SceneWords, type Shown } from './Panel'
-import { AiVsModel, HonestField, MeasureRow, MeasuresHead, useDesk } from './Defense'
-import { intl, kzt } from './format'
+import { SceneWordsPill, type Shown } from './Panel'
+import { AiPlate, HonestPlate, MeasureRow, MeasuresHead } from './Defense'
+import { intl, kzt, kztShort } from './format'
 import { insteadText, RulesEditor, type ApiState } from './RulesEditor'
 import { TradeoffMap, type ModelMark } from './Tradeoff'
-import { Rounds, type Round } from './Rounds'
-import { Changes, MapTabs, Pct, runningPct, SearchMap, type MapState, type MapTab } from './Gap'
+import { type Round } from './Rounds'
+import { Changes, MapTabs, runningPct, SearchMap, type MapState, type MapTab } from './Gap'
 
 const STOP = new Set(['blocked', 'suspended', 'cancelled', 'frozen_src', 'frozen_dst'])
 const SEARCH_MS = 9000 // анимация 200 попыток
@@ -34,7 +33,13 @@ type Step = 0 | 1 | 2 | 3 | 4 // 4 - «Клиент», отчёт открыва
 const TOUR_DWELL: Record<TourId, number> = { attack: 3400, hole: 2600, holeRun: 2800, defense: 4800, client: 4800, report: 0 }
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+// моушн-бриф, раздел 9: при «Уменьшить движение» Motion сам снимает переезды и сдвиги, остаётся opacity.
+// Обёртка здесь, а не в main.tsx: телефон по QR (#client) не тянет Motion в первый бандл
 export default function App() {
+  return <MotionConfig reducedMotion="user"><Twin /></MotionConfig>
+}
+
+function Twin() {
   const { t: tr, lang } = useLang()
   const [bank, setBank] = useState<Bank | null>(null)
   const [ctx, setCtx] = useState<Ctx>(DEMO_CTX)
@@ -71,6 +76,30 @@ export default function App() {
   const [intro, setIntro] = useState(location.hash === '' || location.hash === '#how')
   const mainBtn = useRef<HTMLButtonElement>(null)
   const lastPct = useRef(0) // процент на плитке «Дыры», пока ответ поиска ещё не пришёл
+  // «Перелив» (моушн-бриф, раздел 4): ключ смены шага для плитки; шаг 0 и 1 стоят в одной раскладке
+  const flowKey = Math.max(1, step)
+  // кегль числа у шагов разный (176 / 168 / 188 / 136 px): размер меняется сразу, а глазу его плавно ведёт scale (FLIP по кеглю, только transform)
+  const numEl = useRef<HTMLDivElement>(null)
+  const numScale = useMotionValue(1)
+  const numSize = useRef(0)
+  useLayoutEffect(() => {
+    const el = numEl.current
+    if (!el) { numSize.current = 0; return }
+    const px = parseFloat(getComputedStyle(el).fontSize)
+    const was = numSize.current
+    numSize.current = px
+    if (!was || Math.abs(was - px) < 1 || reduced()) return
+    numScale.set(was / px)
+    const a = animate(numScale, 1, spring.tile)
+    return () => a.stop()
+  }, [flowKey, numScale])
+  // первые 0,9 с после входа в двойник действует порядок входа «Атаки» (раздел 6.1), дальше - порядок «Перелива»
+  const [entered, setEntered] = useState(false)
+  useEffect(() => {
+    if (intro) { setEntered(false); return }
+    const id = window.setTimeout(() => setEntered(true), 900)
+    return () => window.clearTimeout(id)
+  }, [intro])
   // автопоказ «за минуту»: номер стадии из TOUR или null
   const [tour, setTour] = useState<number | null>(null)
   const [armed, setArmed] = useState(false)
@@ -529,22 +558,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', h)
   }, [])
 
-  // v20-fix D5: у плиты шага есть что-то ниже края - низ плиты гаснет градиентом, это подсказка прокрутки
-  const [moreEl, setMoreEl] = useState<HTMLDivElement | null>(null)
-  const [more, setMore] = useState(false)
-  useEffect(() => {
-    const el = moreEl
-    if (!el) { setMore(false); return }
-    const upd = () => setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 4)
-    upd()
-    el.addEventListener('scroll', upd, { passive: true })
-    const ro = new ResizeObserver(upd); ro.observe(el)
-    const mo = new MutationObserver(upd); mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] })
-    return () => { el.removeEventListener('scroll', upd); ro.disconnect(); mo.disconnect() }
-  }, [moreEl])
-
   const facts = useEntryFacts(scKey, ctx)
-  const desk = useDesk()
   vsModelRef.current = view === 'hole' && !!hole?.rules?.model_on
   if (error) return <Fatal msg={error} />
   if (!bank || !sc || !run || !final) return <Splash />
@@ -565,6 +579,11 @@ export default function App() {
   const cc = client?.data
   const robust = client?.robust ?? cc?.robust ?? null
   const warnPer10k = robust?.honest.high_per_10k ?? cc?.stats.honest.high_per_10k ?? null
+  const clientKey = cc ? (clientPick && cc.cases[clientPick] ? clientPick : cc.demo) : null
+  const cCase = clientKey ? cc?.cases[clientKey] : undefined
+  const cLow = !!cCase && cCase.risk.level === 'low'
+  const cT = tr.client.tile[cLow ? (clientKey === 'fresh_card' ? 'fresh_card' : 'honest') : 'high']
+  const cTile = { cap: cT.cap, sub: cT.sub, num: cLow ? `${Math.round(cCase!.risk.score * 100)}%` : warnPer10k != null ? String(Math.round(warnPer10k)) : '-' }
   const unseenPct = bank.model?.summary?.withdrawn_pct_mean?.boosting ?? null
   const pctText = (v: number) => (Math.round(v * 10) % 10 === 0 ? String(Math.round(v)) : lang === 'en' ? v.toFixed(1) : v.toFixed(1).replace('.', ','))
   // запасной прогон вместо своих порогов: одна строка, какое значение показано
@@ -578,12 +597,11 @@ export default function App() {
   const atLeast = !!hole && !searching && isLowerBound(hole) && hole.best.pct < 99.95 // «не меньше 100%» не пишем
   const editor = (hits: Record<string, number> | null, note?: string) => (
     <RulesEditor meta={bank.rule_meta} profile={profile} draft={draft} onChange={setDraft} hits={hits} note={note}
-      api={api} err={ruleErr} setErr={setRuleErr} profileName={bank.name} />
+      api={api} err={ruleErr} setErr={setRuleErr} profileName={bank.name}
+      onReset={edited ? () => { setDraft(profile); setRuleErr(null) } : undefined} />
   )
   const thr = bank.model?.threshold ?? 0.3
   const fresh = step === 0
-  // v21 (wow-v21, п. 7): на телефоне в шагах правил и «Атаки» правила банка выше сцены - свои пороги видны сразу
-  const rulesFirst = step <= 1
   // автопоказ рассказывает про демо-схему, поэтому из панели он доступен только на ней
   const tourReady = scKey === 'student_crypto' && ctx.preset === 'demo'
   const guided = intro || tour != null
@@ -593,34 +611,119 @@ export default function App() {
   lastPct.current = gapPct
   const holeRuns = hole?.scenario.runs
 
+  // v22 (п. 1 CHANGES): заголовок шага в два тона вместо служебных подписей
+  const limitParam = bank.rule_meta.find((m) => m.key === 'amount_limit')?.param
+  const head: readonly string[] = (() => {
+    const V = tr.v22
+    if (step === 0) return V.fresh
+    if (step === 1) return phase === 'done' ? V.attackDone(final.chains_caught, final.chains_total, final.withdrawn_kzt > 0) : V.attackRun
+    if (step === 2) {
+      if (searching) return hole?.rules?.model_on ? V.gapSearchModel : V.gapSearch
+      if (vsModel) return V.gapModel
+      const asked = curRound?.asked ?? []
+      if (asked.some((c) => c.param === limitParam)) return V.gapLimit
+      return asked.length ? V.gapOwn : V.gapProfile
+    }
+    if (step === 3) {
+      if (vsModel) return V.gapModel
+      if (!model && !hold) return V.defenseOff
+      const d = priceOf(rk) - priceOf('base')
+      return V.defenseOn(model ? tr.defense.model : tr.defense.hold, final.withdrawn_kzt === 0, `${d >= 0 ? '+' : '-'}${pctText(Math.abs(d))}`)
+    }
+    return V.client
+  })()
+
+  // v23: второе число «Дыры» и «Защиты» (макеты 02, 03): цена для честных с базой профиля, на «Защите» с моделью - доля на невиданных схемах
+  const basePer10k = curRound && !curRound.base ? rounds.find((r) => r.base)?.honest ?? bank.honest_cost.base.delayed_per_10k : bank.honest_cost.base.delayed_per_10k
+  const askedNow = curRound?.asked ?? []
+  const second: { num: React.ReactNode; sub: readonly string[] } = step === 3 && (model || vsModel) && unseenPct != null
+    ? { num: `${pctText(unseenPct)}%`, sub: tr.v22.unseen2 }
+    : step === 2 && !vsModel && askedNow.length && per10k > basePer10k + 0.05
+      ? { num: <Dec v={per10k} />, sub: askedNow.some((c) => c.param === limitParam) ? tr.v22.honestLimit(pctText(basePer10k)) : tr.v22.honestOwn(pctText(basePer10k)) }
+      : { num: <Dec v={per10k} />, sub: tr.v22.honestOut }
+  // тёмная плита «ИИ против модели»: живое число текущего раунда или последнего такого раунда; до поиска - приглашение
+  const lastAi = [...rounds].reverse().find((r) => r.vsModel)
+  const aiResult = vsModel && hole && !searching
+    ? { pct: hole.best.pct, withdrawn: kzt(hole.best.metrics.withdrawn_kzt, lang), atLeast }
+    : lastAi ? { pct: lastAi.pct, withdrawn: kzt(lastAi.withdrawn, lang), atLeast: true } : null
+
   const pickEntry = (s: number) => {
     if (s === 1) { leaveIntro(); setStep(1); play(true) }
     else if (s === 5) { setIntro(false); setPage('report') }
     else jump(s)
   }
   const n = Math.max(1, step)
-  const field = <HonestField per10k={per10k} onFeed={() => setFeed({ open: true, tab: 'honest' })} />
   const stepName = [tr.steps.attack, tr.steps.gap, tr.steps.defense, tr.steps.customer, tr.steps.report][n - 1]
+  // v23: итоги шагов в шапке живыми числами
+  const modelRun = hole?.scenario.runs.model?.metrics
+  const navVals: (string | null)[] = [
+    ranLib && libSc ? kztShort(libSc.runs.base.metrics.withdrawn_kzt, lang) : null,
+    hole && !searching ? `${atLeast ? `${tr.gap.atLeast} ` : ''}${pctText(hole.best.pct)}%` : null,
+    modelRun ? kztShort(modelRun.withdrawn_kzt, lang) : null,
+    warnPer10k != null ? tr.client.approx(Math.round(warnPer10k)) : null,
+    null,
+  ]
+  // v23: «Дыра» и «Защита» по макетам 02-hole и 03-defense: сцены нет, справа большие плиты, плитка числа заходит на них
+  const wide = !intro && (step === 2 || step === 3)
+  // число плитки на шагах 1-4: одно значение, суффикс и единица по шагу («млн ₸», «%», «₸», пусто)
+  const num: { v: number | null; frac: number; pre?: string; suffix?: string; unit?: string; cls: string; text: string } = (() => {
+    const en = lang === 'en'
+    if (step === 2) { const r = Math.round(gapPct * 10) / 10; const whole = r === 100 || r === 0; return { v: r, frac: whole ? 0 : 1, suffix: '%', cls: 'tile-num-gap', text: `${pctText(r)}%` } }
+    if (step === 4) {
+      const v = cLow ? Math.round(cCase!.risk.score * 100) : warnPer10k != null ? Math.round(warnPer10k) : null
+      return { v, frac: 0, suffix: cLow ? '%' : undefined, cls: 'tile-num-c', text: cTile.num }
+    }
+    const m = Math.round(shown.w / 1e5) / 10, zero = m === 0
+    const text = zero ? (en ? '₸0' : '0 ₸') : en ? `₸${m.toFixed(1)}M` : `${m.toFixed(1).replace('.', ',')} млн ₸`
+    return { v: m, frac: zero ? 0 : 1, pre: en ? '₸' : undefined, suffix: en && !zero ? 'M' : undefined, unit: en ? undefined : zero ? '₸' : 'млн ₸',
+      cls: step === 3 ? `tile-num-def ${zero ? 'num-zero' : ''}` : '', text }
+  })()
+  const tileCap: React.ReactNode = step === 2 ? (atLeast ? tr.gap.atLeast : tr.v22.capBest) : step === 4 ? cTile.cap : null
+  const tileSub: React.ReactNode = step === 4 ? <>{cTile.sub[0]}<br />{cTile.sub[1]}</>
+    : step === 3 ? (shown.att > 0 ? (() => { const L = vsModel ? tr.v22.withdrawnModel(kzt(shown.att, lang)) : tr.v22.withdrawnFound(kzt(shown.att, lang)); return <>{L[0]}<br />{L[1]}</> })() : null)
+      : step === 2 ? (vsModel ? tr.gap.leakModel(kzt(shown.w, lang)) : tr.gap.leak(kzt(shown.w, lang)))
+        : shown.att > 0 ? tr.v22.withdrawnOf(kzt(shown.att, lang)) : ''
+  // спутники плитки проявляются после переезда (520 мс, шаг 60 мс); при входе в двойник - на 520 / 580 / 640 мс
+  const satDelay = (i: number) => ({ '--d': `${Math.round((flow.sat + i * flow.satStep) * 1000)}ms` }) as React.CSSProperties
+  // «посадка числа»: конец атаки, конец поиска, «0 ₸» после включения меры
+  const land = step === 1 && phase === 'done' && run ? { key: `atk-${final.withdrawn_kzt}` }
+    : step === 2 && hole && !searching ? { key: `gap-${hole.best.pct}-${rounds.length}` }
+      : step === 3 && phase === 'done' && Math.round(shown.w / 1e5) === 0 ? { key: 'zero', calm: true } : null
+  // главная кнопка шага: на телефоне закреплена снизу, на «Атаке» стоит рядом со вторым числом
+  const mainBar = (
+    <div className={`fixed inset-x-0 bottom-0 z-30 flex flex-col gap-3 bg-linear-to-t from-bg from-60% to-bg/0 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-4 lg:static lg:z-10 lg:bg-none lg:px-0 lg:pb-0 ${(step <= 1 || wide) && !intro ? 'lg:pt-0' : 'lg:pt-5'} ${wide && step === 3 ? 'lg:flex-row lg:gap-5' : ''}`}>
+      {step === 3 && aiMain && (
+        <button type="button" className="ctl ctl-glass ctl-light w-full !justify-between !px-[26px] max-lg:hidden lg:!w-[200px] lg:shrink-0" onClick={() => goStep(4)} data-to-client>
+          {tr.defense.toClient}
+        </button>
+      )}
+      <button ref={mainBtn} className={`ctl ctl-main main-in min-w-0 w-full !justify-between whitespace-nowrap !pl-[26px] !pr-[24px] ${wide && step === 3 ? (aiMain ? 'lg:!w-[350px]' : 'lg:!w-[260px]') : ''}`} onClick={main.on} disabled={main.disabled} aria-keyshortcuts="ArrowRight">
+        <span key={main.label} className="lbl-in">{main.label}</span>
+        <ArrowRight size={20} strokeWidth={1.75} className="next" aria-hidden />
+      </button>
+    </div>
+  )
+  // v23: экран «Атака» собран по макету 01-attack: сцена большой плитой справа, плита правил поверх её низа
+  const atk = !intro && step <= 1
 
   return (
-    <div className={`app-h flex flex-col bg-bg text-ink lg:h-screen lg:overflow-hidden ${intro ? '' : 'max-lg:pb-(--bar-h)'}`}>
+    <div className={`app-h tone-${intro ? 'report' : STEP_TONE[step]} flex flex-col overflow-x-clip bg-bg text-ink lg:h-screen lg:overflow-hidden ${intro ? '' : 'max-lg:pb-(--bar-h)'}`}>
+      <Backdrop tone={intro ? null : STEP_TONE[step]} />
       <button className="ctl ctl-main sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50" onClick={() => document.getElementById('main')?.focus()}>{tr.skip}</button>
       {!intro && <h1 className="sr-only">Fraud Twin: {stepName}</h1>}
-      <header className="z-30 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 pt-2 lg:grid lg:h-16 lg:shrink-0 lg:grid-cols-[1fr_auto_1fr] lg:px-4 lg:pt-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <button className="-m-1 shrink-0 rounded-xl p-1" onClick={goHome} aria-label={tr.home} title={tr.home}><BrandMark /></button>
-          <p className="whitespace-nowrap text-[20px] font-semibold leading-none tracking-[-0.03em]">Fraud <span className="text-brand">Twin</span></p>
+      {/* v23 (макет Penpot): шапка 96, знак-квадрат, шаги текстом с итогом шага под названием, справа «Как устроено» и круг языка */}
+      <header className="hdr-in z-30 flex flex-wrap items-center gap-x-3 px-5 pt-[18px] lg:h-24 lg:shrink-0 lg:flex-nowrap lg:items-start lg:px-8 lg:pt-0 xl:px-14">
+        <div className="flex min-w-0 items-center gap-2.5 lg:mt-8 lg:w-[232px] lg:shrink-0 max-[1279px]:lg:w-[200px]">
+          <button className="-m-1 shrink-0 rounded-[11px] p-1" onClick={goHome} aria-label={tr.home} title={tr.home}><BrandMark /></button>
+          <p className="logo-name max-lg:text-[17px]">Fraud Twin</p>
         </div>
-        <div className="max-lg:order-last max-lg:-mx-3 max-lg:w-[calc(100%+24px)] max-lg:overflow-x-auto max-lg:px-3 max-lg:pb-1">
-          <Segments step={step} hasHole={!!hole && !searching} busy={searching} locked={guided} onPick={goStep} />
+        <div className="scroll-x max-lg:order-last max-lg:-mx-5 max-lg:mt-4 max-lg:w-[calc(100%+40px)] max-lg:overflow-x-auto max-lg:px-5 lg:mt-[22px] lg:min-w-0 lg:flex-1">
+          <StepNav step={step} vals={navVals} hasHole={!!hole && !searching} busy={searching} locked={guided} onPick={goStep} />
         </div>
-        <div className="ml-auto flex items-center gap-2 lg:justify-self-end">
-          <LangSwitch />
-          <button className="ctl ctl-quiet !h-11 whitespace-nowrap !px-4 !font-medium max-lg:hidden max-[1399px]:!w-11 max-[1399px]:!px-0" onClick={openHow} inert={tour != null} aria-label={tr.header.howAria}>
-            <Info size={17} strokeWidth={1.75} aria-hidden /><span className="max-[1399px]:hidden">{tr.header.how}</span>
-          </button>
-          <span className="max-lg:hidden" inert={guided}><BankSelect bank={bank} preset={ctx.preset} disabled={searching} onPick={pickBank} /></span>
-          <span className="lg:hidden" inert={tour != null}><MobileMenu bank={bank} preset={ctx.preset} disabled={searching || guided} onPick={pickBank} onHow={openHow} /></span>
+        <div className="ml-auto flex items-center gap-4 lg:mt-[30px] lg:gap-5">
+          <button className="how-link max-lg:hidden" onClick={openHow} inert={tour != null} aria-label={tr.header.howAria}>{tr.header.how}</button>
+          <span className="max-lg:hidden"><LangSwitch /></span>
+          <span inert={tour != null}><BankMenu bank={bank} preset={ctx.preset} disabled={searching || guided} onPick={pickBank} onHow={openHow} /></span>
         </div>
       </header>
       <Calibration open={calibOpen} bank={bank} live={source === 'api'} onApply={applyCalib} onClose={() => setCalibOpen(false)} />
@@ -628,127 +731,157 @@ export default function App() {
       <FeedDialog open={feed.open} tab={feed.tab} setTab={(tab) => setFeed({ open: true, tab })} onClose={() => setFeed((f) => ({ ...f, open: false }))}
         sc={sc} log={log} honest={bank.honest_feed?.[rk]} thr={thr} measure={tr.feed.measures[rk]} />
 
-      {/* каркас 12 колонок: вход 7+5 и ряд плиток, рабочий экран 8+4. Сцена всегда в одном месте дерева, 3D не пересоздаётся */}
-      <main id="main" tabIndex={-1} className={`grid flex-1 outline-none grid-cols-1 gap-2 p-2 lg:min-h-0 lg:grid-cols-12 lg:gap-3 lg:p-3 lg:pt-0 ${intro ? 'lg:grid-rows-[minmax(0,1fr)_auto]' : 'lg:grid-rows-[minmax(0,1fr)]'}`}>
+      {/* v22 (макет Penpot): слева смысл шага (заголовок, плитка, панель, кнопка), справа сцена главной плитой.
+          Вход остаётся на 12 колонках. Сцена всегда в одном месте дерева, 3D не пересоздаётся */}
+      <main id="main" tabIndex={-1} className={`grid flex-1 outline-none grid-cols-1 gap-3 p-3 ${intro
+        ? 'lg:min-h-0 lg:grid-cols-12 lg:gap-3 lg:pt-0 lg:grid-rows-[minmax(0,1fr)_auto]'
+        : atk
+          ? 'max-lg:gap-0 max-lg:px-5 max-lg:pt-5 lg:min-h-0 lg:grid-cols-[minmax(0,554fr)_minmax(0,830fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0 lg:pb-9 lg:pl-8 lg:pr-0 lg:pt-5 xl:pl-14 short:pb-5'
+          : wide
+            ? 'max-lg:gap-0 max-lg:px-5 max-lg:pt-5 lg:min-h-0 lg:grid-cols-[minmax(0,584fr)_minmax(0,800fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0 lg:pb-[50px] lg:pl-8 lg:pr-0 lg:pt-5 xl:pl-14 short:pb-5'
+            : clientOpen
+              ? 'max-lg:gap-0 max-lg:px-5 max-lg:pt-5 lg:min-h-0 lg:grid-cols-[minmax(380px,460fr)_minmax(0,868fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0 lg:pb-9 lg:pl-8 lg:pr-8 lg:pt-5 xl:pl-14 xl:pr-14 short:pb-5'
+              : 'max-lg:px-5 lg:min-h-0 lg:grid-cols-[minmax(400px,520fr)_minmax(0,852fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-x-10 lg:gap-y-0 lg:px-8 lg:pb-10 lg:pt-4 xl:px-14 xl:pb-[44px] short:pb-5'}`}>
         {intro ? <EntryPlate clients={bank.summary.clients} onStart={() => { leaveIntro(); setStep(1); play(true) }} onTour={startTour} /> : null}
-        <div className={`flex min-h-0 flex-col gap-2 lg:gap-3 ${intro ? 'lg:col-span-5' : `lg:col-span-8 ${rulesFirst ? 'max-lg:order-3' : 'max-lg:order-2'}`} ${clientOpen ? 'lg:flex-row' : ''}`}>
+        <div className={`flex min-h-0 flex-col gap-3 lg:gap-5 short:gap-3 ${intro ? 'lg:col-span-5' : `max-lg:contents lg:col-start-2 lg:row-start-1 ${clientOpen ? 'lg:flex-row lg:items-stretch lg:justify-between lg:gap-6 lg:pl-[clamp(16px,5vw,74px)]' : ''}`}`}>
           {clientOpen && <ClientScreen data={client?.data ?? (client === undefined ? undefined : null)} pick={clientPick} onPick={setClientPick}
             auto={tourId === 'client'} onState={onPhone} onClose={() => { stopTour(); goStep(3) }} />}
-          {clientOpen && <ClientOutcomes data={client?.data} pick={clientPick} onPick={setClientPick} after={phone.after}
-            footer={tour != null ? <div className="tour-in-plate"><TourCaption i={tour} onStop={stopTour} /></div> : !intro ? <CaseTask step={step} onHow={openHow} /> : null} />}
+          {clientOpen && <ClientSide check={client} fresh={clientKey === 'fresh_card'}
+            footer={tour != null ? <div className="tour-in-plate relative mt-4"><TourCaption i={tour} onStop={stopTour} /></div> : null} />}
           <Scene sc={sc} log={log} freezes={run.freezes} t={t} done={phase === 'done'} span={span} playing={phase === 'playing'}
             presets={bank.presets} scKey={scKey} onScheme={setScKey} busy={searching} isHole={view === 'hole'}
             covered={searching} split={(step === 2 || step === 3) && !intro} narrow={clientOpen}
             onPlay={togglePlay} onSkip={skip} phase={phase}
             mark={clientOpen && phone.level && phone.level !== 'low' && !phone.after ? clientChain : null}
-            gone={phone.after === 'cancel' ? clientChain : null} aside={intro} intro={intro} hideMobile={clientOpen} off={clientOpen}
-            overlay={<>
-              {tour != null && <TourCaption i={tour} onStop={stopTour} />}
-              {!intro && tour == null && !searching && !clientOpen && <CaseTask step={step} onHow={openHow} />}
-            </>} />
-          {step === 2 && !intro && (mapTab === 'tradeoff' && !searching
-            ? <TradeoffMap rounds={rounds} model={mark} meta={bank.rule_meta} unseen={unseenPct} scheme={scKey} ctx={ctx} head={<MapTabs tab={mapTab} onTab={setMapTab} />} />
-            : <SearchMap s={mapState} meta={bank.rule_meta} onRetry={findHole} head={<MapTabs tab={searching ? 'search' : mapTab} onTab={(v) => { if (!searching) setMapTab(v) }} />} />)}
-          {step === 3 && !intro && desk && holeRuns && <div className="plate shrink-0 px-6 pb-4 pt-3.5 short:pb-3 short:pt-2.5">{field}</div>}
+            gone={phone.after === 'cancel' ? clientChain : null} aside={intro} intro={intro} hideMobile={clientOpen} off={clientOpen || wide}
+            words={step <= 1 ? <SceneWordsPill /> : null} atk={atk}
+            overlay={tour != null ? <TourCaption i={tour} onStop={stopTour} /> : null} />
+          {step === 2 && !intro && <>
+            {mapTab === 'tradeoff' && !searching
+              ? <TradeoffMap rounds={rounds} model={mark} meta={bank.rule_meta} unseen={unseenPct} scheme={scKey} ctx={ctx} head={<MapTabs tab={mapTab} onTab={setMapTab} />} />
+              : <SearchMap s={mapState} meta={bank.rule_meta} onRetry={findHole} head={<MapTabs tab={searching ? 'search' : mapTab} onTab={(v) => { if (!searching) setMapTab(v) }} />} />}
+            {/* под картой без плиты: что поменял мошенник слева, главная кнопка справа (макет 02-hole) */}
+            <div className="relative z-10 flex shrink-0 items-end gap-5 max-lg:order-6 max-lg:mt-6 max-lg:px-1 lg:mt-[clamp(0px,0.9vh,8px)] lg:pl-10 lg:pr-[26px]" inert={tour != null}>
+              <div className="min-w-0 flex-1">
+                {fallbackNote && <p role="status" className="mb-2 text-[14px] font-medium leading-snug text-warn" data-fallback>{fallbackNote}</p>}
+                <Changes data={hole} searching={searching} />
+              </div>
+              <div className="lg:w-[330px] lg:shrink-0">{mainBar}</div>
+            </div>
+          </>}
+          {step === 3 && !intro && holeRuns && <>
+            <section className="plate plate-xl shrink-0 px-5 pb-2 pt-5 max-lg:order-5 max-lg:mt-6 lg:pb-[34px] lg:pl-9 lg:pr-[80px] lg:pt-[34px] short:pb-2 short:pt-5" aria-label={tr.v22.measures} data-measures inert={tour != null}>
+              <MeasuresHead big />
+              <div className="divide-y divide-ink/[0.07]">
+                <MeasureRow big on={model || vsModel} locked={vsModel} set={(v) => toggleMeasure('model', v)} hotkey="1" name={tr.defense.model}
+                  hint={vsModel ? tr.defense.modelLocked : tr.defense.modelHint} price={vsModel ? null : priceDelta('model')} />
+                <MeasureRow big on={hold} set={(v) => toggleMeasure('hold', v)} hotkey="2" name={tr.defense.hold} hint={tr.defense.holdNote} price={priceDelta('hold')} />
+              </div>
+              {priceFailed && <p className="pb-2 text-[14px] leading-snug text-ink-2" data-price-note>{tr.defense.priceProfile}</p>}
+            </section>
+            <div className="def-row relative flex min-h-0 flex-1 flex-col gap-5 max-lg:order-6 max-lg:mt-5 lg:mt-[clamp(0px,1.1vh,10px)] lg:block">
+              <HonestPlate per10k={per10k} onFeed={() => setFeed({ open: true, tab: 'honest' })}
+                className="px-5 pb-4 pt-5 lg:h-[calc(100%-clamp(16px,8.2vh,74px))] lg:w-[58.75%] lg:px-8 lg:pb-5 lg:pt-[34px] short:pt-5" />
+              {api !== 'static' && <AiPlate result={aiResult} busy={searching} onRun={() => { markModel(); runSearch(true) }}
+                className="min-h-[260px] px-7 pb-7 pt-7 lg:absolute lg:bottom-0 lg:right-[-90px] lg:top-6 lg:z-10 lg:min-h-0 lg:w-[470px] lg:px-9 lg:pb-[30px] lg:pt-[34px] short:pt-6" />}
+            </div>
+          </>}
+          {atk && (
+            <motion.section initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ ...spring.ui, delay: entered ? flow.right : 0.42 }}
+              className="plate-float relative z-20 shrink-0 px-5 py-2.5 max-lg:order-4 max-lg:mt-4 lg:-mt-[58px] lg:ml-[80px] lg:mr-[50px] lg:px-8 lg:pb-6 lg:pt-[24px] short:pb-4 short:pt-4" aria-label={tr.rules.title} inert={tour != null}>
+              {editor(phase === 'done' && step === 1 ? final.rule_hits : step === 1 ? liveHits(log, run.freezes, t) : null)}
+            </motion.section>
+          )}
         </div>
 
         {!intro ? (
-          <aside className="flex min-h-0 flex-col gap-3 lg:col-span-4 max-lg:contents" aria-label={stepName} inert={tour != null}>
-            <StepTile tone={STEP_TONE[step]} className="flex shrink-0 flex-col p-6 pb-9 short:p-5 short:pb-7 max-lg:order-1 max-lg:p-5 max-lg:pb-7">
-              <div className="flex items-center justify-between gap-3">
-                <span className="t-caps">{stepName}</span>
-                <span className="t-caps opacity-80">{n} / 5</span>
-              </div>
-              {step === 2 ? (
-                <div id="number" className="mt-5 grid gap-5 short:mt-3 short:gap-3" aria-live="polite">
-                  <div className="min-w-0">
-                    {atLeast && <div className="t-caption -mt-1 mb-1 opacity-90" data-at-least>{tr.gap.atLeast}</div>}
-                    <div className="t-num1" data-gap-pct><Pct v={gapPct} /></div>
-                    <div className="t-caption mt-2 opacity-90">{vsModel ? tr.gap.leakModel(kzt(shown.w, lang)) : tr.gap.leak(kzt(shown.w, lang))}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="t-num2"><Dec v={per10k} /></div>
-                    <div className="t-caption mt-2 opacity-90">{tr.nums.honest} {tr.nums.per10k}</div>
-                  </div>
-                </div>
-              ) : step === 4 ? (
-                <div id="number" className="mt-5 grid gap-5 short:mt-3 short:gap-3" aria-live="polite" data-client-tile>
-                  {robust ? (
-                    <div className="min-w-0">
-                      <div className="t-num1">{pctText(robust.victims.repeat_on_card_covered_pct)}%</div>
-                      <div className="t-caption mt-2 opacity-90">{tr.client.covered}</div>
-                    </div>
-                  ) : null}
-                  <div className="min-w-0">
-                    <div className={robust ? 't-num2' : 't-num1'}>{warnPer10k != null ? tr.client.approx(Math.round(warnPer10k)) : '-'}</div>
-                    <div className="t-caption mt-2 opacity-90">{tr.client.warnings}</div>
-                  </div>
-                </div>
-              ) : fresh ? (
-                <div className="mt-5 short:mt-3">
-                  <p className="t-title">{tr.nums.calm}</p>
-                  <p className="mt-1 text-[16px] opacity-90">{tr.nums.calmText(intl(bank.summary.clients, lang))}</p>
+          <aside className={`flex min-h-0 flex-col max-lg:contents lg:col-start-1 lg:row-start-1 ${atk || wide || step === 4 ? 'relative z-20' : 'aside-c'}`} aria-label={stepName} inert={tour != null}>
+            <h2 className={`step-head max-lg:order-1 ${atk ? 'lg:pt-4' : wide ? 'lg:pt-5' : step === 4 ? 'step-head-c lg:pt-3' : 'pt-2 lg:pt-5 short:pt-2'}`} data-step-head aria-live="polite">
+              {/* моушн-бриф: первая строка выезжает из-под маски (при входе 60 мс, при смене шага 280 мс), серая только проявляется */}
+              <span className="head-mask"><motion.span key={`h${flowKey}-${head[0]}`} className="block" initial={{ y: '110%' }} animate={{ y: 0 }}
+                transition={{ duration: entered ? 0.52 : 0.62, ease: ease.soft, delay: entered ? flow.head : 0.06 }}>{head[0]}</motion.span></span>
+              {' '}<motion.span key={`m${flowKey}-${head[1]}`} className="mute" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ duration: 0.32, ease: ease.out, delay: entered ? flow.headMute : 0.3 }}>{head[1]}</motion.span>
+            </h2>
+            {step === 4 && <ClientTabs data={client?.data} pick={clientPick} onPick={setClientPick} className="relative z-10 max-lg:order-2 max-lg:mt-5 lg:mt-[clamp(14px,2.7vh,24px)]" />}
+            <StepTile tone={STEP_TONE[step]} flowKey={flowKey} land={land} className={`shrink-0 max-lg:mt-[18px] max-lg:min-h-[200px] ${atk
+              ? 'relative z-10 max-lg:order-2 lg:mt-[clamp(28px,7.8vh,70px)] lg:h-[clamp(220px,32.2vh,290px)] lg:w-[calc(100%+46px)]'
+              : wide
+                ? `relative z-10 max-lg:order-2 lg:mt-[clamp(28px,7.6vh,68px)] ${step === 2
+                  ? 'lg:h-[clamp(220px,32.2vh,290px)] lg:w-[calc(100%+36px)]'
+                  : 'lg:h-[clamp(226px,33.3vh,300px)] lg:w-[calc(100%+16px)]'}`
+                : step === 4
+                  ? 'relative z-10 max-lg:order-3 lg:mt-[clamp(16px,3.1vh,28px)] lg:h-[clamp(200px,27.8vh,250px)] lg:w-full'
+                : 'max-lg:order-3 lg:mt-6 lg:min-h-[180px] short:mt-4 short:min-h-[150px]'}`}
+              innerClassName={`flex flex-col max-lg:px-[26px] max-lg:pb-5 max-lg:pt-4 ${atk
+                ? 'lg:px-10 lg:pb-[36px] lg:pt-[40px]'
+                : wide
+                  ? `tile-white lg:px-11 ${step === 2 ? 'lg:pb-[32px] lg:pt-[32px]' : 'lg:pb-[30px] lg:pt-[30px]'}`
+                  : step === 4
+                    ? 'lg:px-10 lg:pb-[26px] lg:pt-[28px]'
+                    : 'lg:px-8 lg:pb-6 lg:pt-5 short:pb-4 short:pt-3'}`}>
+              {fresh ? (
+                <div className="lg:pt-4">
+                  <p className="tile-cap">{tr.nums.calm}</p>
+                  <p className="mt-3 text-[26px] font-medium leading-tight tracking-[-0.025em] lg:text-[30px]">{tr.nums.calmText(intl(bank.summary.clients, lang))}</p>
                   {tourReady && (
-                    <button className="ctl mt-4 !h-10 bg-white !px-4 text-ink hover:bg-white/90 short:mt-3" onClick={startTour}>
+                    <button className="ctl mt-5 !h-11 bg-white !px-5 text-ink hover:bg-white/90 short:mt-3" onClick={startTour}>
                       <Play size={14} strokeWidth={2.25} aria-hidden />{tr.nums.tour}
                     </button>
                   )}
                 </div>
               ) : (
-                <div id="number" className="mt-5 grid gap-5 short:mt-3 short:gap-3" aria-live="polite">
-                  <div className="min-w-0">
-                    <div className="t-num1"><Money v={shown.w} /></div>
-                    <div className="t-caption mt-2 opacity-90">{tr.nums.withdrawn} {shown.att > 0 ? tr.nums.of(kzt(shown.att, lang)) : ''}</div>
-                    {/* v21: «0 ₸» с моделью верно только против уже найденной атаки, так и подписано */}
-                    {step === 3 && model && !vsModel && <div className="t-caption mt-1 opacity-90" data-found-only>{tr.defense.foundOnly}</div>}
-                    {/* v21 (wow-v21, п. 2): рядом с «0 ₸» честная цифра модели на схемах, которых она не видела */}
-                    {step === 3 && model && !vsModel && unseenPct != null && (
-                      <div className="t-caption mt-1 opacity-90" title={tr.defense.unseenTitle} data-unseen-tile>{tr.defense.unseen(pctText(unseenPct))}</div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="t-num2"><Dec v={per10k} /></div>
-                    <div className="t-caption mt-2 opacity-90">{tr.nums.honest} {tr.nums.per10k}</div>
-                  </div>
-                </div>
+                // моушн-бриф, раздел 4: одно число на шагах 1-4. Узел NumberFlow не пересоздаётся, поэтому число пересчитывается на месте;
+                // блок едет вместе с плиткой, но не растягивается (layout="position"). Спутники (надпись, пояснение, второе число) проявляются после переезда
+                <motion.div layout="position" layoutDependency={flowKey} transition={spring.tile} id="number" className="flex flex-1 flex-col" aria-live="polite"
+                  data-client-tile={step === 4 ? clientKey ?? '' : undefined}>
+                  {tileCap && <div key={`c${flowKey}`} className="tile-cap sat-in" style={satDelay(0)} data-at-least={step === 2 && atLeast ? '' : undefined}>{tileCap}</div>}
+                  <motion.div ref={numEl} style={{ scale: numScale, originX: 0, originY: 0.5 }} className={`tile-num ${num.cls} ${step === 4 ? 'mt-1' : ''}`}
+                    data-gap-pct={step === 2 ? '' : undefined} data-value={num.text}>
+                    {num.pre && <span className="u u-pre !ml-0 mr-[0.06em]">{num.pre}</span>}
+                    <span className={num.v == null ? 'invisible' : undefined}>
+                      <NumberFlow value={num.v ?? 0} locales={lang === 'en' ? 'en-US' : 'ru-RU'} {...numberTiming} suffix={num.suffix}
+                        format={{ minimumFractionDigits: num.frac, maximumFractionDigits: num.frac }} />
+                    </span>
+                    {num.v == null && <span className="absolute">-</span>}
+                    {num.unit && <span key={num.unit} className="u unit-in">{num.unit}</span>}
+                  </motion.div>
+                  {tileSub && <div key={`s${flowKey}`} className={`tile-sub sat-in mt-auto pt-2 ${step === 3 ? 'tile-sub-def' : step === 4 ? 'tile-sub-c' : 'truncate max-lg:mt-1'}`} style={satDelay(1)}>{tileSub}</div>}
+                  {/* телефон: второе число внутри плитки одной строкой, как в 06-attack-375 */}
+                  {step !== 4 && <div key={`m${flowKey}`} className="sat-in mt-2 flex items-baseline gap-3 lg:hidden" style={satDelay(2)}><span className="text-[28px] font-medium leading-none tracking-[-0.04em]">{wide ? second.num : <Dec v={per10k} />}</span><span className="text-[13px] opacity-90">{wide ? second.sub.join(' ') : tr.v22.honestOne}</span></div>}
+                </motion.div>
               )}
             </StepTile>
-            <section className={`plate flex min-h-0 flex-1 flex-col ${rulesFirst ? 'max-lg:order-2' : 'max-lg:order-3'}`} aria-label={stepName}>
-              <div key={step} ref={setMoreEl} className={`step-in min-h-0 flex-1 space-y-4 px-5 pb-4 pt-5 lg:overflow-y-auto ${step === 2 ? 'lg:space-y-3 lg:pt-4' : ''} lg:px-6 short:space-y-2.5 short:pb-2 short:pt-3.5 ${more ? 'scroll-more' : ''}`}>
-                {step === 0 && <>{editor(null)}<SceneWords /></>}
-                {step === 1 && <>{editor(phase === 'done' ? final.rule_hits : liveHits(log, run.freezes, t), phase === 'done' ? caughtNote(final, tr, lang) : undefined)}<SceneWords /></>}
-                {step === 2 && <>
-                  {fallbackNote && <p role="status" className="text-[15px] font-medium leading-snug text-warn" data-fallback>{fallbackNote}</p>}
-                  <Changes data={hole} searching={searching} />
-                  <Rounds rounds={searching && hole ? rounds.slice(0, -1) : rounds} meta={bank.rule_meta} />
-                </>}
-                {step === 3 && holeRuns && <>
-                  <div data-measures>
-                    <MeasuresHead />
-                    <MeasureRow on={model || vsModel} locked={vsModel} set={(v) => toggleMeasure('model', v)} hotkey="1" name={tr.defense.model}
-                      hint={vsModel ? undefined : tr.defense.modelHint} note={vsModel ? tr.defense.modelLocked : undefined} price={vsModel ? null : priceDelta('model')} />
-                    <MeasureRow on={hold} set={(v) => toggleMeasure('hold', v)} hotkey="2" name={tr.defense.hold} note={tr.defense.holdNote} price={priceDelta('hold')} />
-                    {priceFailed && <p className="mt-1 text-[15px] leading-snug text-ink-2" data-price-note>{tr.defense.priceProfile}</p>}
+            {/* второе число под плиткой: 56 px чёрным, подпись в две строки; на «Атаке» рядом главная кнопка */}
+            {step === 4 && robust && (
+              <div className="sat-in flex items-center gap-x-7 max-lg:order-5 max-lg:mt-6 max-lg:px-1 lg:mt-[clamp(16px,2.9vh,26px)]" style={satDelay(2)} data-second>
+                <span className="fig2">{pctText(robust.victims.repeat_on_card_covered_pct)}%</span>
+                <span className="fig2-sub">{tr.client.covered2[0]}<br />{tr.client.covered2[1]}</span>
+              </div>
+            )}
+            {(atk || (step !== 4 && !fresh)) && (
+              <div className={`flex items-center gap-x-8 max-lg:contents ${atk ? 'lg:mt-[clamp(20px,3.8vh,34px)]' : wide ? (step === 3 ? 'lg:mt-[clamp(18px,5.5vh,50px)]' : 'lg:mt-[clamp(22px,6.6vh,60px)]') : 'lg:mt-5 short:mt-3'}`}>
+                {!fresh && step !== 4 && (
+                  <div key={`f${flowKey}`} className={`sat-in flex items-center max-lg:hidden ${wide ? 'gap-x-7' : 'gap-x-[34px]'}`} style={satDelay(2)} data-second>
+                    <span className="fig2">{wide ? second.num : <Dec v={per10k} />}</span>
+                    <span className="fig2-sub">{(wide ? second.sub : tr.v22.honestOut)[0]}<br />{(wide ? second.sub : tr.v22.honestOut)[1]}</span>
                   </div>
-                  {!desk && field}
-                  {aiMain
-                    ? <button type="button" className="ctl ctl-quiet !h-11 !px-4 !font-medium" onClick={() => goStep(4)} data-to-client>{tr.defense.toClient}</button>
-                    : api !== 'static' && !vsModel && <AiVsModel onAi={() => { markModel(); runSearch(true) }} />}
-                </>}
-                {step === 4 && <ClientFacts check={client} />}
+                )}
+                {atk && <div className="ml-auto lg:-mr-[10px] lg:w-[230px] lg:shrink-0">{mainBar}</div>}
               </div>
-              <div className="fixed inset-x-0 bottom-0 z-30 bg-linear-to-t from-bg from-60% to-bg/0 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-4 lg:static lg:z-10 lg:bg-none lg:px-6 lg:pb-6 lg:pt-3 short:pb-5">
-                <div className="flex gap-2">
-                  <button ref={mainBtn} className="ctl ctl-main min-w-0 flex-1 !justify-between whitespace-nowrap !px-6" onClick={main.on} disabled={main.disabled} aria-keyshortcuts="ArrowRight">
-                    {main.label}
-                    <ArrowRight size={18} strokeWidth={2} className="next" aria-hidden />
-                  </button>
-                  {edited && (step === 0 || step === 1) && (
-                    <button type="button" className="ctl ctl-quiet shrink-0 !px-5" onClick={() => { setDraft(profile); setRuleErr(null) }} aria-label={tr.rules.resetAria} title={tr.rules.resetAria}>{tr.rules.reset}</button>
-                  )}
-                </div>
-              </div>
-            </section>
+            )}
+            {atk ? (
+              <p className="foot-note sat-in mt-auto pt-4 max-lg:order-5 max-lg:mt-4 max-lg:px-1" style={satDelay(3)} data-twin-foot>{tr.v22.twinFoot(intl(bank.summary.clients, lang))}</p>
+            ) : step === 3 ? (
+              <div className="lg:mt-[clamp(18px,6vh,54px)]">{mainBar}</div>
+            ) : step === 4 ? (
+              <div className="lg:mt-[clamp(12px,2vh,18px)] lg:w-[270px]">{mainBar}</div>
+            ) : null}
+            {step === 3 && aiMain && (
+              <button type="button" className="ctl ctl-glass w-full !justify-between !px-[22px] max-lg:order-7 max-lg:mt-4 lg:hidden" onClick={() => goStep(4)} data-to-client-m>
+                {tr.defense.toClient}<ArrowRight size={20} strokeWidth={1.75} aria-hidden />
+              </button>
+            )}
           </aside>
         ) : null}
 
@@ -758,6 +891,7 @@ export default function App() {
     </div>
   )
 }
+
 
 function liveMetrics(log: TxEvent[], freezes: Freeze[], t: number) {
   let withdrawn = 0, stopped = 0
@@ -784,59 +918,39 @@ function bankItems(bank: Bank, t: ReturnType<typeof useLang>['t']) {
   return [...bank.calib_presets.map((p) => ({ value: p.id, label: p.name, note: p.note })), { value: 'custom', label: t.header.custom, note: t.header.customNote }]
 }
 
-function BankSelect({ bank, preset, disabled, onPick }: { bank: Bank; preset: string | null; disabled: boolean; onPick: (id: string) => void }) {
-  const { t } = useLang()
-  const items = bankItems(bank, t)
-  return (
-    <Select.Root items={items} value={preset ?? 'custom'} onValueChange={(v) => v && onPick(v as string)} disabled={disabled}>
-      <Select.Trigger aria-label={t.header.bankAria} className="ctl ctl-quiet !h-11 !justify-between !gap-2 !px-4 !font-medium text-left data-[disabled]:opacity-45">
-        <Landmark size={17} strokeWidth={1.75} className="shrink-0 text-ink-3" aria-hidden />
-        <Select.Value className="block whitespace-nowrap" />
-        <Select.Icon className="shrink-0 text-ink-3"><ChevronDown size={16} strokeWidth={1.75} /></Select.Icon>
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Positioner sideOffset={6} align="end" alignItemWithTrigger={false} className="z-40">
-          <Select.Popup className="w-[min(340px,calc(100vw-24px))] rounded-[22px] bg-surface p-1.5 text-ink shadow-[0_1px_2px_rgba(14,14,17,0.06),0_18px_40px_-16px_rgba(14,14,17,0.3)] outline-none
-            origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0">
-            {items.map((p) => (
-              <Select.Item key={p.value} value={p.value}
-                className={`flex cursor-default items-start gap-3 rounded-2xl px-3 py-2.5 outline-none select-none data-[highlighted]:bg-surface-2 ${p.value === 'custom' ? 'mt-1' : ''}`}>
-                <span className="mt-0.5 w-4 shrink-0"><Select.ItemIndicator><Check size={16} strokeWidth={2} /></Select.ItemIndicator></span>
-                <span className="min-w-0">
-                  <Select.ItemText className="block text-[15px] font-medium">{p.label}</Select.ItemText>
-                  <span className="t-caption block text-ink-3">{p.note}</span>
-                </span>
-              </Select.Item>
-            ))}
-            <p className="px-3 pb-2 pt-2 text-[13px] leading-snug text-ink-3">{t.header.bankFoot}</p>
-          </Select.Popup>
-        </Select.Positioner>
-      </Select.Portal>
-    </Select.Root>
-  )
-}
-
-// Телефон: «Как устроено» и профиль банка в одном меню
-function MobileMenu({ bank, preset, disabled, onPick, onHow }: { bank: Bank; preset: string | null; disabled: boolean; onPick: (id: string) => void; onHow: () => void }) {
-  const { t } = useLang()
+// v23: профиль банка и «Как устроено» (на телефоне ещё язык) в одном меню у круга справа
+function BankMenu({ bank, preset, disabled, onPick, onHow }: { bank: Bank; preset: string | null; disabled: boolean; onPick: (id: string) => void; onHow: () => void }) {
+  const { t, lang, setLang } = useLang()
   const [open, setOpen] = useState(false)
   const cur = preset ?? 'custom'
+  const other: Lang = lang === 'ru' ? 'en' : 'ru'
+  const row = 'flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-medium hover:bg-surface-2'
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger className="ctl ctl-quiet !h-11 !w-11 !px-0" aria-label={t.header.menu}><Menu size={18} strokeWidth={1.75} aria-hidden /></Popover.Trigger>
+      <Popover.Trigger className="circle-btn !w-[42px] !px-0 max-lg:!h-9 max-lg:!w-10 max-lg:bg-white/80 max-lg:shadow-none" aria-label={`${t.header.menu}: ${t.v22.bankMenu}`} title={t.v22.bankMenu}>
+        <Landmark size={16} strokeWidth={1.75} className="max-lg:hidden" aria-hidden /><Menu size={18} strokeWidth={1.75} className="lg:hidden" aria-hidden />
+      </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={8} align="end" className="z-40">
-          <Popover.Popup className="w-[min(320px,calc(100vw-16px))] rounded-[22px] bg-surface p-1.5 text-ink shadow-[0_1px_2px_rgba(14,14,17,0.06),0_18px_40px_-16px_rgba(14,14,17,0.3)] outline-none">
-            <button className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-medium hover:bg-surface-2" onClick={() => { setOpen(false); onHow() }}>
-              <Info size={17} strokeWidth={1.75} className="text-ink-3" aria-hidden />{t.header.how}
-            </button>
-            <p className="t-caps px-3 pb-1 pt-3 text-ink-3">{t.header.bankAria}</p>
+          <Popover.Popup className="w-[min(340px,calc(100vw-16px))] rounded-[22px] bg-surface p-1.5 text-ink shadow-[0_1px_2px_rgba(14,14,17,0.06),0_18px_40px_-16px_rgba(14,14,17,0.3)] outline-none
+            origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0">
+            <div className="lg:hidden">
+              <button className={row} onClick={() => { setOpen(false); onHow() }}>
+                <Info size={17} strokeWidth={1.75} className="text-ink-3" aria-hidden />{t.header.how}
+              </button>
+              <button className={row} lang={other} onClick={() => setLang(other)} aria-label={t.v22.langTo(LANGS[other].langName)}>
+                <span className="grid w-[17px] place-items-center text-[12px] font-semibold text-ink-3">{other.toUpperCase()}</span>{LANGS[other].langName}
+              </button>
+            </div>
+            <p className="t-caps px-3 pb-1 pt-3 text-ink-3 lg:pt-2">{t.header.bankAria}</p>
             {bankItems(bank, t).map((p) => (
               <button key={p.value} disabled={disabled} aria-pressed={cur === p.value} onClick={() => { setOpen(false); onPick(p.value) }}
-                className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-medium hover:bg-surface-2 disabled:opacity-45">
-                <span className="w-4 shrink-0">{cur === p.value && <Check size={16} strokeWidth={2} aria-hidden />}</span>{p.label}
+                className="flex min-h-12 w-full items-start gap-3 rounded-2xl px-3 py-2.5 text-left hover:bg-surface-2 disabled:opacity-45">
+                <span className="mt-0.5 w-4 shrink-0">{cur === p.value && <Check size={16} strokeWidth={2} aria-hidden />}</span>
+                <span className="min-w-0"><span className="block text-[15px] font-medium">{p.label}</span><span className="t-caption block text-ink-3">{p.note}</span></span>
               </button>
             ))}
+            <p className="px-3 pb-2 pt-2 text-[13px] leading-snug text-ink-3">{t.header.bankFoot}</p>
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>
@@ -844,52 +958,68 @@ function MobileMenu({ bank, preset, disabled, onPick, onHow }: { bank: Bank; pre
   )
 }
 
-// RU/EN пилюлей: aria-pressed, меняет <html lang> и заголовок вкладки (i18n/index.tsx)
+// v23: круг языка 42x36: показывает текущий язык, нажатие переключает на другой; меняет <html lang> и заголовок вкладки
 function LangSwitch() {
   const { lang, setLang, t } = useLang()
+  const other: Lang = lang === 'ru' ? 'en' : 'ru'
   return (
-    <div className="seg seg-sm" role="group" aria-label={t.header.lang}>
-      {(Object.keys(LANGS) as Lang[]).map((l) => (
-        <button key={l} type="button" className="seg-item" aria-pressed={lang === l} lang={l} title={LANGS[l].langName} onClick={() => setLang(l)}>
-          {lang === l && <span className="seg-on" aria-hidden />}<span className="relative">{l.toUpperCase()}</span>
-        </button>
-      ))}
-    </div>
+    <button type="button" className="circle-btn" lang={lang} onClick={() => setLang(other)} aria-label={t.v22.langTo(LANGS[other].langName)} title={LANGS[other].langName} data-lang-switch>
+      {lang.toUpperCase()}
+    </button>
   )
 }
 
-// Сегмент шагов: белая дорожка-пилюля на фоне, активный шаг чёрная пилюля (скользит 220 мс), недоступные ink-3 45%
-function Segments({ step, hasHole, busy, locked, onPick }: { step: Step; hasHole: boolean; busy: boolean; locked: boolean; onPick: (s: number) => void }) {
+const NAV_TONE = ['attack', 'gap', 'defense', 'customer', 'report'] as const
+// v23 шаги текстом: номер мелко, название, под ним итог шага; у активного полоска в цвете шага (скользит 220 мс), закрытые бледнее
+function StepNav({ step, vals, hasHole, busy, locked, onPick }: { step: Step; vals: (string | null)[]; hasHole: boolean; busy: boolean; locked: boolean; onPick: (s: number) => void }) {
   const { t } = useLang()
-  const items = [{ s: 1, t: t.steps.attack }, { s: 2, t: t.steps.gap }, { s: 3, t: t.steps.defense }, { s: 4, t: t.steps.customer }, { s: 5, t: t.steps.report }]
+  const items = [t.steps.attack, t.steps.gap, t.steps.defense, t.steps.customer, t.steps.report]
   const cur = Math.max(1, step)
+  // линия шага едет через layoutId и при этом меняет цвет: слой прежнего тона гаснет, слой нового проявляется (320 мс)
+  const prevCur = useRef(cur)
+  const fromTone = prevCur.current
+  useEffect(() => { prevCur.current = cur }, [cur])
   return (
-    <ToggleGroup value={[String(cur)]} onValueChange={(v) => v[0] && onPick(Number(v[0]))} aria-label={t.stepsAria} inert={locked}
-      className="seg seg-steps w-max max-lg:min-w-full">
-      {items.map((it) => {
-        const lockedStep = (it.s === 3 || it.s === 4) && !hasHole
-        return (
-          <Toggle key={it.s} value={String(it.s)} disabled={busy || lockedStep} aria-current={cur === it.s ? 'step' : undefined}
-            title={lockedStep ? t.stepLockedHint : undefined}
-            aria-label={lockedStep ? t.stepLocked(it.t) : t.stepAria(it.s, 5, it.t)}
-            className="seg-item">
-            {cur === it.s && <motion.span layoutId="seg" className="seg-on" transition={{ duration: reduced() ? 0 : 0.22, ease: [0.2, 0, 0, 1] }} />}
-            <span className="relative">{it.t}</span>
-          </Toggle>
-        )
-      })}
-    </ToggleGroup>
+    <nav aria-label={t.stepsAria} inert={locked}>
+      <ol className="stepnav">
+        {items.map((name, i) => {
+          const s = i + 1
+          const lockedStep = (s === 3 || s === 4) && !hasHole
+          const v = s <= cur ? vals[i] : null
+          return (
+            <li key={s} className="contents">
+              <button type="button" className={`stepnav-item tone-${NAV_TONE[i]}`} disabled={busy || lockedStep} aria-current={cur === s ? 'step' : undefined}
+                title={lockedStep ? t.stepLockedHint : undefined} aria-label={lockedStep ? t.stepLocked(name) : `${t.stepAria(s, 5, name)}${v ? `, ${v}` : ''}`}
+                onClick={() => cur !== s && onPick(s)}>
+                <span className="stepnav-n" aria-hidden>{String(s).padStart(2, '0')}</span>
+                <span className="stepnav-t">{name}</span>
+                {/* итог пройденного шага появляется на 240 мс «Перелива» */}
+                <span key={v ? 'v' : 'e'} className={`stepnav-v ${v ? 'nav-v-in' : ''}`} aria-hidden>{v ?? ''}</span>
+                {cur === s && (
+                  <motion.span layoutId="stepbar" className="stepnav-bar" aria-hidden transition={spring.ui}>
+                    {NAV_TONE.map((k, j) => (
+                      <motion.span key={k} className={`stepnav-bar-tone tone-${k}`} initial={{ opacity: j + 1 === fromTone ? 1 : 0 }}
+                        animate={{ opacity: j + 1 === s ? 1 : 0 }} transition={{ duration: 0.32, ease: ease.out }} />
+                    ))}
+                  </motion.span>
+                )}
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </nav>
   )
 }
 
-// Знак Fraud Twin: буква F и её близнец, повёрнутый на 180°; зазор между перекладинами - дыра. v20: графит и brand вместо неона
+// v23 (макет): знак - квадрат 32 с градиентом бренда и буквой F
 function BrandMark() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 32 32" className="shrink-0" aria-hidden>
-      <g fill="#0E0E11"><rect x="4" y="4" width="5" height="24" rx="1.3" /><rect x="4" y="4" width="16" height="5" rx="1.3" /><rect x="4" y="13.5" width="10" height="5" rx="1.3" /></g>
-      <g fill="#5B4BD6"><rect x="23" y="4" width="5" height="24" rx="1.3" /><rect x="12" y="23" width="16" height="5" rx="1.3" /><rect x="18" y="13.5" width="10" height="5" rx="1.3" /></g>
-    </svg>
-  )
+  return <span className="logo-mark max-lg:!size-7 max-lg:!rounded-lg max-lg:!text-[17px]" aria-hidden>F</span>
+}
+
+// v23: фон шага - непрозрачный слой пятен своего тона поверх пятен «Атаки», кроссфейд 700 мс (только opacity)
+function Backdrop({ tone }: { tone: string | null }) {
+  return <>{(['gap', 'defense', 'customer'] as const).map((k) => <div key={k} aria-hidden className={`backdrop backdrop-${k}`} data-on={tone === k ? '' : undefined} />)}</>
 }
 
 function Splash() {

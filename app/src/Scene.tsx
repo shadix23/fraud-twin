@@ -23,6 +23,8 @@ export default function Scene(props: {
   mark?: number | null; gone?: number | null; aside?: boolean; intro?: boolean; overlay?: ReactNode
   narrow?: boolean // шаг «Клиент»: сцена рядом с экраном клиента, кадр как на телефоне (вид спереди)
   hideMobile?: boolean // шаг «Клиент» на телефоне: вместо сцены экран клиента, сцена остаётся смонтированной
+  words?: ReactNode // v22: «Что на сцене» пилюлей рядом с выбором схемы
+  atk?: boolean // v23: экран «Атака» по макету: плита уходит за правый край, выбор схемы и время сверху, низ под плитой правил
   off?: boolean // v20-fix: шаг «Клиент» на любой ширине: сцены нет (бриф), 3D остаётся смонтированной и не пересоздаётся
 }) {
   const { sc, log, freezes, t, done } = props
@@ -39,14 +41,13 @@ export default function Scene(props: {
   const compact = size.W < 520 || (!!props.narrow && size.W < 760)
 
   return (
-    <section className={`scene relative isolate flex min-h-0 flex-1 flex-col text-ink ${props.split ? 'lg:min-h-[380px]' : ''} ${props.hideMobile ? 'max-lg:hidden' : ''} ${props.off ? '!hidden' : ''}`} aria-label={tr.scene.aria}>
-      <div className={`flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-5 lg:px-6 ${props.intro ? 'hidden' : ''}`}>
-        <SchemeSelect presets={props.presets} value={props.scKey} onChange={props.onScheme} disabled={props.busy} />
-        <Controls phase={props.phase} busy={props.busy} onPlay={props.onPlay} onSkip={props.onSkip} />
-        <span className="tabular-nums text-[28px] font-semibold leading-none tracking-tight" aria-label={tr.scene.clockAria(clock(t))}>{clock(t)}</span>
+    <section className={`scene relative isolate flex min-h-0 flex-1 flex-col text-ink ${props.atk ? 'scene-in max-lg:order-3 max-lg:-mr-[61px] max-lg:-mt-8 max-lg:ml-4 lg:-mr-[70px]' : 'max-lg:order-2'} ${props.split ? 'lg:min-h-[300px]' : ''} ${props.hideMobile ? 'max-lg:hidden' : ''} ${props.off ? '!hidden' : ''}`} aria-label={tr.scene.aria}>
+      {/* v22 (макет Penpot): сверху справа только время и нужные кнопки, выбор схемы одной пилюлей снизу */}
+      <div className={`pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end gap-2 px-4 pt-4 sm:px-6 lg:pt-6 ${props.atk ? 'max-lg:hidden lg:pr-[110px] lg:pt-7' : ''} ${props.intro ? 'hidden' : ''}`}>
+        <span className="pointer-events-auto flex items-center gap-2"><Controls phase={props.phase} busy={props.busy} onPlay={props.onPlay} onSkip={props.onSkip} /></span>
+        <span className="scene-clock ml-2 tabular-nums" aria-label={tr.scene.clockAria(clock(t))}>{clock(t)}</span>
       </div>
-
-      <div ref={box} className="relative flex-1 overflow-hidden max-lg:aspect-[4/3] max-lg:min-h-[240px] lg:min-h-0">
+      <div ref={box} className={`relative flex-1 overflow-hidden lg:min-h-0 ${props.atk ? 'max-lg:mr-[48px] max-lg:mt-7 max-lg:aspect-[332/190] lg:mb-[52px] lg:mt-[84px]' : 'max-lg:aspect-[11/10] max-lg:min-h-[260px]'}`}>
         {hasWebGL ? (
           <GLBoundary fallback={<NoGL />}>
             <Suspense fallback={<p className="absolute inset-0 grid place-items-center text-[16px] text-ink-3">{tr.scene.building}</p>}>
@@ -57,6 +58,10 @@ export default function Scene(props: {
         ) : <NoGL />}
       </div>
 
+      <div className={`pointer-events-none absolute inset-x-0 z-10 flex flex-wrap items-end gap-2 px-3 sm:px-6 ${props.atk ? 'bottom-0 pb-3 max-lg:pr-[72px] lg:bottom-auto lg:top-0 lg:items-start lg:pb-0 lg:pl-8 lg:pt-7' : 'bottom-0 pb-3 sm:pb-6'} ${props.intro ? 'hidden' : ''}`}>
+        <span className="pointer-events-auto min-w-0 max-w-full"><SchemeSelect presets={props.presets} value={props.scKey} onChange={props.onScheme} disabled={props.busy} /></span>
+        {props.words && <span className="pointer-events-auto max-sm:hidden">{props.words}</span>}
+      </div>
       {props.overlay}
     </section>
   )
@@ -84,20 +89,22 @@ class GLBoundary extends Component<{ fallback: ReactNode; children: ReactNode },
 // Пуск, пауза и «в конец» рядом с часами; до запуска кнопок нет, запуск делает главная кнопка шага
 function Controls({ phase, busy, onPlay, onSkip }: { phase: string; busy: boolean; onPlay: () => void; onSkip: () => void }) {
   const { t } = useLang()
-  if (phase === 'idle') return <span className="ml-auto" />
-  const label = phase === 'playing' ? t.scene.pause : phase === 'paused' ? t.scene.resume : t.scene.replay
+  if (phase === 'idle') return null
+  if (phase === 'done') return (
+    <button className="ctl ctl-scene !h-10 !px-4 !text-[14px] !font-medium !text-ink-2" onClick={onPlay} disabled={busy} aria-keyshortcuts="Space">
+      <RotateCcw size={15} strokeWidth={1.75} aria-hidden />{t.scene.replay}
+    </button>
+  )
   return (
-    <span className="ml-auto flex items-center gap-2">
-      <button className="ctl ctl-scene !h-10 !px-4 !text-[15px]" onClick={onPlay} disabled={busy} aria-keyshortcuts="Space">
-        {phase === 'playing' ? <Pause size={16} strokeWidth={1.75} /> : phase === 'done' ? <RotateCcw size={16} strokeWidth={1.75} /> : <Play size={16} strokeWidth={1.75} />}
-        {label}
+    <>
+      <button className="ctl ctl-scene !h-10 !w-10 !px-0" onClick={onPlay} disabled={busy} aria-keyshortcuts="Space"
+        aria-label={phase === 'playing' ? t.scene.pause : t.scene.resume} title={phase === 'playing' ? t.scene.pause : t.scene.resume}>
+        {phase === 'playing' ? <Pause size={16} strokeWidth={2} fill="currentColor" aria-hidden /> : <Play size={16} strokeWidth={2} fill="currentColor" aria-hidden />}
       </button>
-      {(phase === 'playing' || phase === 'paused') && (
-        <button className="ctl ctl-scene !h-10 !px-4 !text-[15px]" onClick={onSkip} disabled={busy} aria-keyshortcuts="End">
-          <SkipForward size={16} strokeWidth={1.75} />{t.scene.toEnd}
-        </button>
-      )}
-    </span>
+      <button className="ctl ctl-scene !h-10 !w-10 !px-0" onClick={onSkip} disabled={busy} aria-keyshortcuts="End" aria-label={t.scene.toEnd} title={t.scene.toEnd}>
+        <SkipForward size={16} strokeWidth={2} fill="currentColor" aria-hidden />
+      </button>
+    </>
   )
 }
 
@@ -107,12 +114,9 @@ function SchemeSelect({ presets, value, onChange, disabled }: { presets: PresetI
     <Select.Root items={presets.map((p) => ({ value: p.key, label: p.title }))} value={value}
       onValueChange={(v) => v && onChange(v as string)} disabled={disabled}>
       <Select.Trigger aria-label={t.scene.scheme}
-        className="ctl ctl-scene max-w-full min-w-0 !justify-between !font-medium data-[disabled]:opacity-45 sm:min-w-[340px]">
-        <span className="min-w-0 flex-1 text-left leading-tight">
-          <span className="block whitespace-nowrap text-[13px] font-medium text-ink-3" data-library>{t.scene.library(presets.length)}</span>
-          <Select.Value className="block truncate text-[15px] font-semibold" />
-        </span>
-        <Select.Icon className="shrink-0"><ChevronDown size={18} strokeWidth={1.5} /></Select.Icon>
+        className="ctl ctl-scene !h-10 max-w-full min-w-0 !gap-2 !px-[18px] !text-[15px] !font-medium data-[disabled]:opacity-45">
+        <Select.Value className="block min-w-0 truncate text-left" />
+        <Select.Icon className="shrink-0"><ChevronDown size={16} strokeWidth={2} /></Select.Icon>
       </Select.Trigger>
       <Select.Portal>
         <Select.Positioner sideOffset={6} alignItemWithTrigger={false} className="z-40">

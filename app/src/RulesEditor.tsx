@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
-import { Download, Upload } from 'lucide-react'
+import { Menu } from '@base-ui/react/menu'
+import { ChevronDown, Download, Ellipsis, RotateCcw, Upload } from 'lucide-react'
 import type { RuleErr, RuleMeta, RuleSet } from './data'
 import { useLang, type Dict, type Lang } from './i18n'
 import { kztShort } from './format'
-import { Switch, ValueChip } from './ui'
+import { ValueChip } from './ui'
 
 // Шаг «Атака», плита «Правила банка» (бриф v20, экран «Атака», F3): шесть правил, тумблер, порог-чип в единицах правила,
 // статус точкой и словом. Границы полей из rule_meta (GET /world). Изменённый порог помечен чёрной точкой, профильное значение в подсказке.
@@ -76,10 +77,11 @@ function exportRules(meta: RuleMeta[], draft: RuleSet, profileName: string, file
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function RulesEditor({ meta, profile, draft, onChange, hits, note, api, err, setErr, profileName }: {
+export function RulesEditor({ meta, profile, draft, onChange, hits, note, api, err, setErr, profileName, onReset }: {
   meta: RuleMeta[]; profile: RuleSet; draft: RuleSet; onChange: (r: RuleSet) => void
   hits: Record<string, number> | null; note?: string; api: ApiState
   err: RuleErr | null; setErr: (e: RuleErr | null) => void; profileName: string
+  onReset?: () => void // v22: сброс к профилю в меню «...», есть только когда пороги изменены
 }) {
   const { t, lang } = useLang()
   const file = useRef<HTMLInputElement>(null)
@@ -101,28 +103,53 @@ export function RulesEditor({ meta, profile, draft, onChange, hits, note, api, e
   }
   const formErr = err && !rowErr ? ruleErrText(err, meta, t, lang) : null
 
+  // v22 (п. 4 CHANGES): итог в шапке вместо «молчит / сработало» в каждой строке; на телефоне плита свёрнута в одну строку
+  const [open, setOpen] = useState(false)
+  const fired = hits ? meta.filter((m) => (m.on_param ? draft[m.on_param] !== false : true) && (hits[m.key] ?? 0) > 0).length : null
+  const sum = fired != null ? t.rules.firedN(fired) : null
+  const menuItem = 'flex min-h-11 w-full cursor-default items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium outline-none select-none data-[highlighted]:bg-surface-2'
+
   return (
     <section data-rules-editor>
-      {/* v20-fix D5: шаблон и загрузка в строке заголовка: на 1280x720 они не уходят под край плиты */}
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h2 className="t-title text-ink">{t.rules.title}</h2>
-        <div className="flex flex-wrap gap-x-3">
-          <button type="button" className="flex min-h-10 items-center gap-1.5 rounded-lg text-[14px] font-medium text-ink-2 hover:text-ink short:min-h-9" title={t.rules.export} aria-label={t.rules.export}
-            onClick={() => exportRules(meta, draft, profileName, t.rules.fileName)} data-rules-export>
-            <Download size={15} strokeWidth={1.75} aria-hidden />{t.rules.exportShort}
-          </button>
-          {!ro && (
-            <button type="button" className="flex min-h-10 items-center gap-1.5 rounded-lg text-[14px] font-medium text-ink-2 hover:text-ink short:min-h-9" title={t.rules.import}
-              onClick={() => file.current?.click()} data-rules-import>
-              <Upload size={15} strokeWidth={1.75} aria-hidden />{t.rules.importShort}
-            </button>
-          )}
+      {/* v23 (макет Penpot): «Правила банка» и подсказка в строку, сетка 3x2 «название / порог», сработавший порог с красной точкой */}
+      <div className="flex items-center justify-between gap-x-3">
+        <div className="flex min-w-0 items-baseline gap-x-4 max-lg:hidden">
+          <h2 className="rules-title">{t.rules.title}</h2>
+          {!ro && <span className="rules-hint truncate">{t.rules.hint}</span>}
+        </div>
+        <button type="button" className="-my-1 flex min-h-11 flex-1 items-center justify-between gap-3 text-left lg:hidden" aria-expanded={open} onClick={() => setOpen((o) => !o)} data-rules-toggle>
+          <span className="rules-title !text-[16px]">{t.rules.title}</span>
+          <span className="flex items-center gap-2 text-[15px] text-ink-3">{fired != null ? t.rules.firedOf(fired, meta.length) : t.rules.count(meta.length)}
+            <ChevronDown size={18} strokeWidth={1.75} className={`text-ink-2 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} aria-hidden /></span>
+        </button>
+        <div className={`-my-2 -mr-2 flex items-center gap-2 ${open ? '' : 'max-lg:hidden'}`}>
+          {sum && <span className="sr-only" data-rules-sum>{sum}</span>}
+          <Menu.Root>
+            <Menu.Trigger className="grid size-9 place-items-center rounded-full text-ink-3 hover:bg-white/80 hover:text-ink data-[popup-open]:bg-white" aria-label={t.rules.menu} title={t.rules.menu} data-rules-menu>
+              <Ellipsis size={20} strokeWidth={2} aria-hidden />
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner sideOffset={6} align="end" className="z-40">
+                <Menu.Popup className="w-[min(300px,calc(100vw-24px))] rounded-[20px] bg-surface p-1.5 text-ink shadow-[0_1px_2px_rgba(14,14,17,0.06),0_18px_40px_-16px_rgba(14,14,17,0.3)] outline-none
+                  origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0">
+                  <Menu.Item className={menuItem} onClick={() => exportRules(meta, draft, profileName, t.rules.fileName)} data-rules-export>
+                    <Download size={16} strokeWidth={1.75} className="text-ink-3" aria-hidden />{t.rules.export}
+                  </Menu.Item>
+                  {!ro && <Menu.Item className={menuItem} onClick={() => file.current?.click()} data-rules-import>
+                    <Upload size={16} strokeWidth={1.75} className="text-ink-3" aria-hidden />{t.rules.import}
+                  </Menu.Item>}
+                  {!ro && onReset && <Menu.Item className={menuItem} onClick={() => { onReset(); setMsg(null) }} data-rules-reset>
+                    <RotateCcw size={16} strokeWidth={1.75} className="text-ink-3" aria-hidden />{t.rules.resetAria}
+                  </Menu.Item>}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
         </div>
       </div>
-      <p aria-live="polite" className={`text-[15px] leading-snug ${formErr ? 'text-leak' : 'text-ink-2'} ${formErr || msg ? 'mt-1' : ''}`} data-rules-msg>{formErr ?? msg ?? ''}</p>
-      {/* v21 (wow-v21, п. 7): главное действие продукта - свой порог; подсказка, пока нет сообщения */}
-      {!ro && !formErr && !msg && <p className="t-caption text-ink-3" data-rules-hint>{t.rules.hint}</p>}
-      <ul className="@container mt-1">
+      <p aria-live="polite" className={`text-[14px] leading-snug ${formErr ? 'text-leak' : 'text-ink-2'} ${formErr || msg ? 'mt-1' : ''}`} data-rules-msg>{formErr ?? msg ?? ''}</p>
+      <div className={open || formErr || rowErr ? '' : 'max-lg:hidden'}>
+      <ul className="rules-grid mt-3 lg:mt-5">
         {meta.map((m) => {
           const on = m.on_param ? draft[m.on_param] !== false : true
           const v = typeof draft[m.param] === 'number' ? (draft[m.param] as number) : (m.default ?? 0)
@@ -132,32 +159,28 @@ export function RulesEditor({ meta, profile, draft, onChange, hits, note, api, e
           const name = ruleName(m, t)
           const fmt = (x: number) => ruleValue(m, x, t, lang)
           const bad = rowErr === m.param || rowErr === m.on_param
+          const hot = !!hits && on && h > 0
           return (
-            <li key={m.key} data-rule={m.key}>
-              <div className="grid min-h-11 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-x-2.5 @sm:gap-x-3 short:min-h-9">
-                {m.on_param
-                  ? <Switch on={on} set={(x) => set(m.on_param!, x)} label={t.rules.switchAria(name)} disabled={ro} />
-                  : <span className="w-9" />}
-                <span className={`text-[15px] font-medium leading-tight tracking-[-0.01em] ${on ? 'text-ink' : 'text-ink-3'}`} title={m.title}>{name}</span>
-                <span className={on ? '' : 'opacity-45'}>
-                  <ValueChip key={gen} value={v} min={m.min ?? 0} max={m.max ?? Number.MAX_SAFE_INTEGER} step={m.step ?? 1} format={fmt}
-                    label={t.rules.chipAria(name)} changed={changed} title={changed ? t.rules.was(fmt(pv as number)) : undefined}
-                    disabled={ro} onChange={(x) => set(m.param, x)}
-                    onInvalid={() => m.min != null && m.max != null && setErr({ code: 'rule_range', param: m.param, min: m.min, max: m.max })} />
-                </span>
-                {hits ? (
-                  <span className="flex min-w-[1.25rem] items-center justify-end gap-1.5 text-[13px] font-medium text-ink-2" title={!on ? t.rules.off : h ? t.rules.fired : t.rules.silent}>
-                    <span aria-hidden className={`size-2 shrink-0 rounded-full ${on && h ? 'bg-stop-dot' : 'shadow-[inset_0_0_0_1.5px_var(--color-track)]'}`} />
-                    <span className="@max-[22rem]:sr-only">{!on ? t.rules.off : h ? t.rules.fired : t.rules.silent}</span>
-                  </span>
-                ) : <span />}
+            <li key={m.key} data-rule={m.key} className="rules-cell" data-off={on ? undefined : ''}>
+              {/* тумблер правила - само название: нажатие выключает и включает правило, выключенное зачёркнуто */}
+              {m.on_param
+                ? <button type="button" role="switch" aria-checked={on} aria-label={t.rules.switchAria(name)} title={m.title} disabled={ro}
+                    className="rules-name" onClick={() => set(m.on_param!, !on)}><span className="truncate">{name}</span></button>
+                : <span className="rules-name" title={m.title}><span className="truncate">{name}</span></span>}
+              <div className="rules-val pr-7">
+                <ValueChip key={gen} value={v} min={m.min ?? 0} max={m.max ?? Number.MAX_SAFE_INTEGER} step={m.step ?? 1} format={fmt}
+                  label={t.rules.chipAria(name)} changed={changed} title={changed ? t.rules.was(fmt(pv as number)) : undefined}
+                  disabled={ro} fired={hot} onChange={(x) => set(m.param, x)}
+                  onInvalid={() => m.min != null && m.max != null && setErr({ code: 'rule_range', param: m.param, min: m.min, max: m.max })} />
+                {hot && <span className="rules-dot ml-auto" role="img" aria-label={t.rules.firedN(1)} title={t.rules.firedN(1)} data-fired-dot />}
               </div>
-              {bad && err && <p role="alert" className="pb-1.5 pl-12 text-[13px] font-medium leading-snug text-leak">{ruleErrText(err, meta, t, lang)}</p>}
+              {bad && err && <p role="alert" className="pt-1 text-[13px] font-medium leading-snug text-leak">{ruleErrText(err, meta, t, lang)}</p>}
             </li>
           )
         })}
       </ul>
-      {note && <p className="mt-2 text-[15px] leading-snug text-ink-2" data-rules-note>{note}</p>}
+      {note && <p className="mt-2 text-[14px] leading-snug text-ink-2" data-rules-note>{note}</p>}
+      </div>
       {ro && <p className="mt-2 text-[15px] leading-snug text-ink-2" data-rules-static>{t.rules.static}</p>}
       {!ro && api === 'down' && <p className="mt-2 text-[15px] leading-snug text-ink-2" data-rules-down>{t.rules.down}</p>}
       <input ref={file} type="file" accept="application/json,.json" className="hidden" tabIndex={-1} aria-hidden onChange={(e) => onFile(e.target.files?.[0])} />
