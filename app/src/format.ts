@@ -4,10 +4,12 @@ import type { Lang } from './i18n'
 export function kzt(n: number, lang: Lang = 'ru'): string {
   const a = Math.abs(n)
   if (lang === 'en') {
+    if (a >= 1_000_000_000) return `₸${(n / 1_000_000_000).toFixed(1)}B`
     if (a >= 1_000_000) return `₸${(n / 1_000_000).toFixed(1)}M`
     if (a >= 1_000) return `₸${Math.round(n / 1_000)}K`
     return `₸${Math.round(n)}`
   }
+  if (a >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1).replace('.', ',')}\u00a0млрд\u00a0₸`
   if (a >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.', ',')}\u00a0млн\u00a0₸`
   if (a >= 1_000) return `${Math.round(n / 1_000)}\u00a0тыс.\u00a0₸`
   return `${Math.round(n)} ₸`

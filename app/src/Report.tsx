@@ -8,6 +8,7 @@ import { changeText, ruleValue } from './RulesEditor'
 import type { Round } from './Rounds'
 import { TradeoffMap, type ModelMark } from './Tradeoff'
 import { Money, StepTile } from './ui'
+import Economics, { econCalc, paybackText, useEcon, type Econ } from './Economics'
 
 // Отчёт краш-теста (F6, бриф v20): лист 880 на фоне. Сверху тёмная плитка отчёта: вывод одной мыслью и три числа
 // (одно главное, два вторых, не ряд равных KPI). Ниже лист: ход проверки с порогами и раундами сессии, схемы, рекомендации,
@@ -20,6 +21,8 @@ export default function Report({ ctx, bank, rounds, profile, modelMark = null, s
   const [rep, setRep] = useState<R | null>(null)
   const [source, setSource] = useState<'api' | 'json'>('json')
   const [err, setErr] = useState<string | null>(null)
+  // экономика для банка: входы живут здесь, чтобы строка в PDF совпадала с калькулятором
+  const [econ, setEcon] = useEcon()
   // защита клиента при переводе: честные цифры экрана клиента есть в готовом файле демо-банка
   const [robust, setRobust] = useState<ClientCheck['robust'] | null>(null)
   useEffect(() => { let alive = true; setRobust(null); loadClientCheck('student_crypto', ctx, lang).then((r) => alive && setRobust(r.robust)); return () => { alive = false } }, [ctx]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -75,7 +78,8 @@ export default function Report({ ctx, bank, rounds, profile, modelMark = null, s
           <span className="client-spin" aria-hidden />{t.report.loading}
         </div>
       )}
-      {rep && <Sheet r={rep} bank={bank} rounds={rounds} profile={profile} source={source} robust={robust} t={t} lang={lang} modelMark={modelMark} scheme={scheme} ctx={ctx} />}
+      {rep && <Sheet r={rep} bank={bank} rounds={rounds} profile={profile} source={source} robust={robust} t={t} lang={lang} modelMark={modelMark} scheme={scheme} ctx={ctx} econ={econ} />}
+      {rep && <Economics v={econ} set={setEcon} />}
       {rep && (
         <section className="plate no-print mx-auto mt-3 max-w-[880px] p-5 sm:px-12 sm:py-9" data-rep-pilot>
           <h2 className="t-title">{t.report.pilot}</h2>
@@ -86,9 +90,9 @@ export default function Report({ ctx, bank, rounds, profile, modelMark = null, s
   )
 }
 
-function Sheet({ r, bank, rounds, profile, source, robust, t, lang, modelMark, scheme, ctx }: {
+function Sheet({ r, bank, rounds, profile, source, robust, t, lang, modelMark, scheme, ctx, econ }: {
   r: R; bank: Bank; rounds: Round[]; profile: RuleSet; source: 'api' | 'json'; robust: ClientCheck['robust'] | null; t: Dict; lang: Lang
-  modelMark: ModelMark | null; scheme: string; ctx: Ctx
+  modelMark: ModelMark | null; scheme: string; ctx: Ctx; econ: Econ
 }) {
   const s = r.summary
   const T = t.report
@@ -308,6 +312,15 @@ function Sheet({ r, bank, rounds, profile, source, robust, t, lang, modelMark, s
             </dl>
           </section>
         )}
+        {/* экономика: на экране калькулятор под листом, в PDF одна строка с его текущими значениями */}
+        <section className="break-avoid hidden print:block" data-rep-econ-print>
+          <h2 className="rep-h2">{t.econ.printH}</h2>
+          <p className="mt-2 max-w-[68ch] text-[16px] leading-snug text-ink-2">{(() => {
+            const e = econCalc(econ)
+            return t.econ.print(kzt(e.saves, lang), paybackText(e.payback, t, lang), kzt(econ.P, lang), kzt(econ.L, lang),
+              Math.round(econ.h * 100), Math.round(econ.c * 100), kzt(econ.O, lang), Math.round(econ.o * 100))
+          })()}</p>
+        </section>
         <section className="break-avoid" data-rep-law>
           <h2 className="rep-h2">{T.law}</h2>
           <p className="mt-2 max-w-[68ch] text-[16px] leading-snug text-ink-2">{T.lawText}</p>
