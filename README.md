@@ -94,7 +94,7 @@
 ## Архитектура
 
 ```mermaid
-flowchart LR
+flowchart TB
   AGG["Агрегаты банка"] --> WORLD["world.py<br>двойник: 5 000 клиентов,<br>~15,5 тыс. переводов в сутки"]
   SCH["schemes.py<br>5 схем дропперов"] --> ENG
   RUL["rules.py<br>6 правил банка"] --> ENG
