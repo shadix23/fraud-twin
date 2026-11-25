@@ -1,6 +1,6 @@
 # Fraud Twin: краш-тест антифрода банка
 
-ITU HACKATHON-2026, FINTECH CASE Банка ЦентрКредит. Команда: Shadil Nurmukhammed, Amangeldiev Kaisar, Ordalin Nurassyl.
+ITU HACKATHON-2026, FINTECH CASE Банка ЦентрКредит. Команда: Shadil Nurmukhammed, Amangeldiev Kaisar, Ordalin Nurassyl, Ratlyauly Islam.
 
 MVP: https://fraud-twin.vercel.app (открывается в браузере, установка не нужна). Демо-видео прилагается к заявке файлом `Fraud-Twin-demo.mp4`. Промо 30 секунд: https://youtu.be/Snm-5mN81Yc Код: https://github.com/shadix23/fraud-twin
 
